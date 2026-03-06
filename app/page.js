@@ -141,8 +141,7 @@ export default function YorisoiApp() {
       </div>
     );
   }
-
-  if (role === 'him') {
+if (role === 'him') {
     return (
       <div style={pageStyle}>
         <header style={{ textAlign: 'center', marginBottom: '20px' }}><h2>🤝 みまもり画面</h2></header>
@@ -202,4 +201,67 @@ export default function YorisoiApp() {
             </div>
             {Object.entries({ doing: '👟 状態', requests: '📋 お願い', notToDo: '⚠️ 遠慮してほしいこと' }).map(([key, label]) => (
               <div key={key} style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '14px', margin: 0 }}>{label}</h4>
+                  <button onClick={() => addCustomOption(key)} style={{ background: 'none', border: 'none', color: '#9ebbd7', display: 'flex', alignItems: 'center', fontSize: '12px', cursor: 'pointer' }}>
+                    <Plus size={14} style={{ marginRight: '2px' }} /> 追加
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {(key === 'requests' ? defaultOptions.requests.flatMap(g => g.items) : defaultOptions[key]).concat(data[activeSettingSymptom]?.[settingLevel]?.[key] || []).filter((v,i,a)=>a.indexOf(v)===i).map(item => (
+                    <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} style={{ padding: '8px 12px', borderRadius: '15px', fontSize: '12px', background: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#9ebbd7' : '#fff', color: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#fff' : '#777', border: '1px solid #eee' }}>{item}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>🕊️ {pairCode}</div>
+            <Settings onClick={() => setIsSetting(true)} size={26} color="#9ebbd7" style={{ cursor: 'pointer' }} />
+          </header>
+          {status?.completedTasks?.length > 0 && (
+            <div style={{ background: '#fff', padding: '15px', borderRadius: '20px', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
+              <p style={{ fontSize: '13px', textAlign: 'center', marginBottom: '10px', color: '#82c49a' }}>✨ みまもり担当が動いてくれました！</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                {["ありがとう", "だいすき♡", "助かった"].map(m => (
+                  <button key={m} onClick={() => sendThanks(m)} style={{ padding: '10px', borderRadius: '12px', background: '#f0f7ff', border: '1px solid #9ebbd7', color: '#9ebbd7', fontSize: '12px', fontWeight: 'bold' }}>{m}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>1. 症状を選ぶ</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
+            {defaultSymptoms.map(s => (
+              <button key={s} onClick={() => { const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s]; setSelectedSymptoms(next); updateStatus(next, level); }} style={{ padding: '12px 16px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#777', fontWeight: 'bold' }}>{s}</button>
+            ))}
+          </div>
+          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>2. しんどさは？</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            {[0,1,2,3,4,5].map(n => <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>)}
+          </div>
+          <div style={{ textAlign: 'center', color: level === 0 ? '#82c49a' : '#ff9eb5', fontWeight: 'bold', fontSize: '20px', marginBottom: '25px' }}>{levelEmojis[level]} {levelFeelings[level]}</div>
+          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>3. 内容をチェック・変更</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '30px' }}>
+            {[
+              { id: 'doing', label: '👟 今の状態', color: '#9ebbd7' },
+              { id: 'requests', label: '📋 お願い', color: '#ff9eb5' },
+              { id: 'notToDo', label: '⚠️ 遠慮してほしいこと', color: '#f87171' }
+            ].map(item => (
+              <div key={item.id} onClick={() => editPlanItem(item.id)} style={{ background: '#fff', padding: '15px', borderRadius: '15px', borderLeft: `6px solid ${item.color}`, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <small style={{ fontWeight: 'bold', color: item.color }}>{item.label}</small>
+                  <div style={{ fontSize: '14px', marginTop: '3px' }}>{status?.[item.id]?.join('、') || "未入力（タップで入力）"}</div>
+                </div>
+                <Edit3 size={16} color="#ccc" />
+              </div>
+            ))}
+          </div>
+          <button onClick={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【YORISOI🕊️】\n体調更新しました：${selectedSymptoms.join('＆')} Lv.${level}\n${levelEmojis[level]}${levelFeelings[level]}\nアプリで詳細を確認してね！`)}`)} style={{ width: '100%', padding: '20px', borderRadius: '30px', background: '#4cc764', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px' }}>LINEで通知する（重要）</button>
+        </>
+      )}
+    </div>
+  );
+}
