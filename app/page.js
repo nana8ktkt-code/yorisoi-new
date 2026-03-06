@@ -317,8 +317,59 @@ export default function YorisoiApp() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`YORISOI🕊️でつながりましょう\nコード：${pairCode}`)}`)} className="push-btn line-btn">LINEで通知する</button>
+                            {/* 共有セクション：ここから入れ替え */}
+              <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', textAlign: 'center', border: '2px dashed #9ebbd7' }}>
+                  <small style={{ color: '#9ebbd7', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>招待コード</small>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '2px' }}>{pairCode}</div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button 
+                    onClick={() => {
+                      const text = `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ\n\nhttps://yorisoi.app/invite/${pairCode}`;
+                      navigator.clipboard.writeText(text);
+                      alert("リンクをコピーしました！");
+                    }} 
+                    className="push-btn" 
+                    style={{ padding: '15px', borderRadius: '20px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                  >
+                    <Copy size={18} /> リンクコピー
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const text = `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ\n\nhttps://yorisoi.app/invite/${pairCode}`;
+                      window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`);
+                    }} 
+                    className="push-btn" 
+                    style={{ padding: '15px', borderRadius: '20px', background: '#4cc764', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                  >
+                    <Share size={18} /> LINEで送る
+                  </button>
+                </div>
+                
+                <button 
+                  onClick={async () => {
+                    const shareData = {
+                      title: 'YORISOI',
+                      text: `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ`,
+                      url: `https://yorisoi.app/invite/${pairCode}`
+                    };
+                    if (navigator.share) {
+                      try { await navigator.share(shareData); } catch (err) { console.log(err); }
+                    } else {
+                      alert("お使いのブラウザは共有機能に対応していません。リンクコピーをご利用ください。");
+                    }
+                  }} 
+                  className="push-btn" 
+                  style={{ width: '100%', padding: '18px', borderRadius: '25px', background: '#9ebbd7', color: '#fff', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <Share size={20} /> 共有する
+                </button>
+              </div>
             </>
+            /* ここまで入れ替え */
+
           )}
         </>
       )}
