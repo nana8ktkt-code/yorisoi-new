@@ -200,7 +200,7 @@ export default function YorisoiApp() {
       </div>
     );
   }
-  
+
   // 役割選択とコード入力画面
   if (!pairCode || !role) {
     return (
