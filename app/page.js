@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3 } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Edit3, Plus } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -86,6 +86,13 @@ export default function YorisoiApp() {
     setDoc(doc(db, "configs", pairCode), newData);
   };
 
+  const addCustomOption = (type) => {
+    const newItem = window.prompt("追加したい項目を入力してください");
+    if (newItem && newItem.trim() !== "") {
+      toggleSelection(activeSettingSymptom, settingLevel, type, newItem.trim());
+    }
+  };
+
   const getPlan = (syms, lv) => {
     const combined = { doing: [], requests: [], notToDo: [] };
     syms.forEach(s => {
@@ -99,7 +106,8 @@ export default function YorisoiApp() {
 
   const editPlanItem = (type) => {
     const current = status?.[type]?.join('、') || "";
-    const newValue = window.prompt(`${type === 'doing' ? '今の状態' : type === 'requests' ? 'やってほしいこと' : '避けてほしいこと'}を入力してください`, current);
+    const label = type === 'doing' ? '今の状態' : type === 'requests' ? 'やってほしいこと' : '遠慮してほしいこと';
+    const newValue = window.prompt(`${label}を入力してください`, current);
     if (newValue !== null) {
       const newList = newValue.split(/[、, ]/).filter(i => i.trim() !== "");
       updateStatus(selectedSymptoms, level, {
@@ -155,7 +163,7 @@ export default function YorisoiApp() {
                 </div>
               </div>
               <div style={{ background: '#fff', padding: '18px', borderRadius: '20px', borderLeft: '6px solid #f87171' }}>
-                <small style={{ fontWeight: 'bold', color: '#f87171' }}>⚠️ 避けてほしいこと</small>
+                <small style={{ fontWeight: 'bold', color: '#f87171' }}>⚠️ 遠慮してほしいこと</small>
                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {status.notToDo?.map(task => (
                     <div key={task} onClick={() => toggleTask(task)} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', opacity: status.completedTasks?.includes(task) ? 0.5 : 1 }}>
@@ -184,9 +192,14 @@ export default function YorisoiApp() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               {[0,1,2,3,4,5].map(n => <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '35px', height: '35px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>)}
             </div>
-            {Object.entries({ doing: '👟 状態', requests: '📋 お願い', notToDo: '⚠️ NG' }).map(([key, label]) => (
+            {Object.entries({ doing: '👟 状態', requests: '📋 お願い', notToDo: '⚠️ 遠慮してほしいこと' }).map(([key, label]) => (
               <div key={key} style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '14px' }}>{label}</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '14px', margin: 0 }}>{label}</h4>
+                  <button onClick={() => addCustomOption(key)} style={{ background: 'none', border: 'none', color: '#9ebbd7', display: 'flex', alignItems: 'center', fontSize: '12px', cursor: 'pointer' }}>
+                    <Plus size={14} style={{ marginRight: '2px' }} /> 追加
+                  </button>
+                </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {(key === 'requests' ? defaultOptions.requests.flatMap(g => g.items) : defaultOptions[key]).concat(data[activeSettingSymptom]?.[settingLevel]?.[key] || []).filter((v,i,a)=>a.indexOf(v)===i).map(item => (
                     <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} style={{ padding: '8px 12px', borderRadius: '15px', fontSize: '12px', background: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#9ebbd7' : '#fff', color: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#fff' : '#777', border: '1px solid #eee' }}>{item}</button>
@@ -228,7 +241,7 @@ export default function YorisoiApp() {
             {[
               { id: 'doing', label: '👟 今の状態', color: '#9ebbd7' },
               { id: 'requests', label: '📋 お願い', color: '#ff9eb5' },
-              { id: 'notToDo', label: '⚠️ NG', color: '#f87171' }
+              { id: 'notToDo', label: '⚠️ 遠慮してほしいこと', color: '#f87171' }
             ].map(item => (
               <div key={item.id} onClick={() => editPlanItem(item.id)} style={{ background: '#fff', padding: '15px', borderRadius: '15px', borderLeft: `6px solid ${item.color}`, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
