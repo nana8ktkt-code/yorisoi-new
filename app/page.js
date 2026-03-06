@@ -16,11 +16,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// しんどさレベルの定義
+// 定義
 const levelFeelings = ["落ち着いたよ", "違和感あり", "ちょっとしんどい", "しんどい", "かなりつらい", "限界"];
 const levelEmojis = ["🍃", "😅", "😷", "😭", "🥶", "🤮"];
+const moodOptions = [
+  { emoji: "🙂", label: "落ち着いてる" },
+  { emoji: "😢", label: "寂しい" },
+  { emoji: "😡", label: "イライラ" },
+  { emoji: "😴", label: "眠い" },
+  { emoji: "🤢", label: "気持ち悪い" }
+];
 
-const moodOptions = ["眠い...", "イライラしちゃう", "寂しい", "そっとしておいて", "食欲なし"];
 const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
 
 const getHint = (lv) => {
@@ -30,7 +36,11 @@ const getHint = (lv) => {
   return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
 };
 
-const getBgColor = (lv) => {
+// モードとレベルに基づいた背景色の決定
+const getDynamicBg = (lv, mode) => {
+  if (mode === "🌿") return "#f2f2f2"; // そっとしてモード（静かなグレー）
+  if (mode === "🐶") return "#fff3e0"; // そばにいてモード（温かいオレンジ）
+  
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
@@ -50,8 +60,7 @@ export default function YorisoiApp() {
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
   const [sentMsg, setSentMsg] = useState(null);
-const [mood, setMood] = useState("");
-const [stayMode, setStayMode] = useState("");
+
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultOptions = {
     doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いたきた", "声がでません", "お風呂入れない"],
@@ -84,12 +93,13 @@ const [stayMode, setStayMode] = useState("");
     }
   };
 
-  const updateStatus = async (newSymptoms, newLevel, customPlan = null, mood = null) => {
+  const updateStatus = async (newSymptoms, newLevel, customPlan = null, mood = null, mode = null) => {
     if (!pairCode) return;
     const plan = customPlan || getPlan(newSymptoms, newLevel);
     await setDoc(doc(db, "pairs", pairCode), {
       symptoms: newSymptoms, level: newLevel, feeling: levelFeelings[newLevel], emoji: levelEmojis[newLevel],
       mood: mood !== null ? mood : (status?.mood || ""),
+      mode: mode !== null ? mode : (status?.mode || ""),
       updatedAt: new Date().getTime(), doing: plan.doing, requests: plan.requests, notToDo: plan.notToDo,
       completedTasks: status?.completedTasks || [],
       actions: status?.actions || []
@@ -101,7 +111,7 @@ const [stayMode, setStayMode] = useState("");
     setSelectedSymptoms([]);
     setLevel(0);
     await setDoc(doc(db, "pairs", pairCode), {
-      symptoms: [], level: 0, feeling: levelFeelings[0], emoji: levelEmojis[0], mood: "",
+      symptoms: [], level: 0, feeling: levelFeelings[0], emoji: levelEmojis[0], mood: "", mode: "",
       updatedAt: new Date().getTime(), doing: [], requests: [], notToDo: [],
       completedTasks: [], thanks: "", actions: []
     });
@@ -109,7 +119,6 @@ const [stayMode, setStayMode] = useState("");
 
   const addAction = async (msg) => {
     const currentActions = status?.actions || [];
-    if (currentActions.some(a => a.text === msg)) return;
     const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
     const nextActions = [newAction, ...currentActions].slice(0, 5);
     await setDoc(doc(db, "pairs", pairCode), { actions: nextActions }, { merge: true });
@@ -126,18 +135,6 @@ const [stayMode, setStayMode] = useState("");
     await setDoc(doc(db, "pairs", pairCode), { 
       completedTasks: isNowCompleted ? [...current, task] : current.filter(t => t !== task)
     }, { merge: true });
-  };
-
-  const sendQuickReply = async (msg) => {
-    if (status?.actions?.some(a => a.text.includes(msg))) return;
-    setSentMsg("送信したよ🕊️");
-    setTimeout(() => setSentMsg(null), 1500);
-    await addAction(`💬 お相手：${msg}`);
-  };
-
-  const sendThanks = async (msg) => {
-    await setDoc(doc(db, "pairs", pairCode), { thanks: msg, actions: [], updatedAt: new Date().getTime() }, { merge: true });
-    alert("感謝を伝えました🕊️");
   };
 
   const getPlan = (syms, lv) => {
@@ -190,7 +187,7 @@ const [stayMode, setStayMode] = useState("");
     }
   };
 
-  const currentBg = getBgColor(status?.level || 0);
+  const currentBg = getDynamicBg(status?.level || 0, status?.mode);
   const pageStyle = { padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', color: '#5a7d9a', transition: 'background 0.5s ease' };
 
   if (showIntro) {
@@ -199,11 +196,6 @@ const [stayMode, setStayMode] = useState("");
         <Heart size={64} color="#9ebbd7" style={{ marginBottom: '20px' }} />
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', letterSpacing: '4px', marginBottom: '10px' }}>YORISOI</h1>
         <p style={{ fontSize: '15px', lineHeight: '1.8', marginBottom: '40px', color: '#7ba2c7' }}>体調を言葉にしなくても<br /><strong>大切な人に</strong>伝えられるアプリ</p>
-        <div style={{ textAlign: 'left', background: '#fff', padding: '30px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.04)', width: '100%', marginBottom: '50px' }}>
-          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>①</span><span style={{ fontSize: '14px' }}>体調を入力</span></div>
-          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>②</span><span style={{ fontSize: '14px' }}>お願いが自動生成</span></div>
-          <div style={{ display: 'flex', gap: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>③</span><span style={{ fontSize: '14px' }}><strong>お相手に</strong>共有</span></div>
-        </div>
         <button onClick={() => setShowIntro(false)} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '35px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 6px 20px rgba(158,187,215,0.4)' }}>はじめる</button>
       </div>
     );
@@ -278,7 +270,10 @@ const [stayMode, setStayMode] = useState("");
               {status && (status.symptoms?.length > 0 || status.level !== undefined) ? (
                 <>
                   <div style={{ background: '#fff', borderRadius: '35px', padding: '35px 25px', textAlign: 'center', marginBottom: '25px', boxShadow: '0 10px 25px rgba(0,0,0,0.03)' }}>
-                    <div style={{ fontSize: '17px', color: '#9ebbd7', fontWeight: 'bold', marginBottom: '10px' }}>{status.symptoms?.join(' ＆ ')}</div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '8px' }}>
+                      {status.mood ? `いまは ${status.mood} 気分で、` : ""} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#9ebbd7', marginBottom: '10px' }}>{status.symptoms?.join(' ＆ ')}</div>
                     <div style={{ fontSize: '64px', fontWeight: 'bold', color: '#5a7d9a', margin: '10px 0' }}>Lv.{status.level}</div>
                     <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
                     <div style={{ marginTop: '20px', background: '#f0f7ff', padding: '15px', borderRadius: '20px', fontSize: '14px', lineHeight: '1.6' }}>
@@ -304,7 +299,6 @@ const [stayMode, setStayMode] = useState("");
                               </div>
                             );
                           })}
-                          {(!status.requests || status.requests.length === 0) && <div style={{ color: '#ccc', fontSize: '14px' }}>特になし</div>}
                         </div>
                       </div>
                     </div>
@@ -318,6 +312,27 @@ const [stayMode, setStayMode] = useState("");
             </div>
           ) : (
             <div className="fade-in">
+              {/* ① 今日の気分 */}
+              <h2 className="section-title">今日の気分は？</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '25px' }}>
+                {moodOptions.map(m => (
+                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, null, m.emoji + " " + m.label)} className="push-btn" style={{ flex: 1, padding: '15px 5px', borderRadius: '20px', border: 'none', background: status?.mood?.includes(m.label) ? '#9ebbd7' : '#fff', color: status?.mood?.includes(m.label) ? '#fff' : '#5a7d9a', boxShadow: '0 4px 10px rgba(0,0,0,0.03)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '4px' }}>{m.emoji}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 'bold' }}>{m.label}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* ② 🐶/🌿 モード */}
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '35px' }}>
+                <button onClick={() => updateStatus(selectedSymptoms, level, null, null, "🐶")} className="push-btn" style={{ flex: 1, padding: '18px', borderRadius: '25px', border: 'none', background: status?.mode === "🐶" ? "#fff3e0" : "#fff", color: "#5a7d9a", fontWeight: "bold", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", boxShadow: status?.mode === "🐶" ? "inset 0 2px 5px rgba(0,0,0,0.05)" : "0 4px 12px rgba(0,0,0,0.03)" }}>
+                  <span style={{ fontSize: "24px" }}>🐶</span> そばにいて
+                </button>
+                <button onClick={() => updateStatus(selectedSymptoms, level, null, null, "🌿")} className="push-btn" style={{ flex: 1, padding: '18px', borderRadius: '25px', border: 'none', background: status?.mode === "🌿" ? "#f2f2f2" : "#fff", color: "#5a7d9a", fontWeight: "bold", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", boxShadow: status?.mode === "🌿" ? "inset 0 2px 5px rgba(0,0,0,0.05)" : "0 4px 12px rgba(0,0,0,0.03)" }}>
+                  <span style={{ fontSize: "24px" }}>🌿</span> そっとして
+                </button>
+              </div>
+
               <h2 className="section-title">1. 症状を選ぶ</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '35px' }}>
                 {defaultSymptoms.map(s => (
@@ -329,7 +344,6 @@ const [stayMode, setStayMode] = useState("");
                 ))}
               </div>
 
-              {/* 2. しんどさは？（1枚目の画像の操作感を再現） */}
               <h2 className="section-title">2. しんどさは？</h2>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '15px' }}>
                 {[0, 1, 2, 3, 4, 5].map(n => (
@@ -343,15 +357,11 @@ const [stayMode, setStayMode] = useState("");
 
               <h2 className="section-title">3. 内容をチェック</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '40px' }}>
-                {[
-                  { id: 'doing', label: '😷 やっていること', color: '#9ebbd7' },
-                  { id: 'requests', label: '☺️ やってくれたら嬉しい', color: '#ff9eb5' },
-                  { id: 'notToDo', label: '🥺 遠慮してほしいこと', color: '#f87171' }
-                ].map(item => (
+                {[{ id: 'doing', label: '😷 やっていること', color: '#9ebbd7' }, { id: 'requests', label: '☺️ やってくれたら嬉しい', color: '#ff9eb5' }, { id: 'notToDo', label: '🥺 遠慮してほしいこと', color: '#f87171' }].map(item => (
                   <div key={item.id} onClick={() => editPlanItem(item.id)} className="push-btn plan-card" style={{ borderLeft: `6px solid ${item.color}`, background: '#fff', padding: '18px 22px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                     <div>
                       <small style={{ fontWeight: 'bold', color: item.color, fontSize: '11px' }}>{item.label}</small>
-                      <div style={{ fontSize: '15px', marginTop: '4px' }}>{status?.[item.id] && status[item.id].length > 0 ? status[item.id].join('、') : "未入力"}</div>
+                      <div style={{ fontSize: '15px', marginTop: '4px' }}>{status?.[item.id]?.length > 0 ? status[item.id].join('、') : "未入力"}</div>
                     </div>
                     <Edit3 size={18} color="#ccc" />
                   </div>
@@ -363,25 +373,10 @@ const [stayMode, setStayMode] = useState("");
                   <small style={{ color: '#9ebbd7', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>招待コード</small>
                   <div style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '2px' }}>{pairCode}</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <button onClick={() => {
-                    const text = `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ\n\nhttps://yorisoi.app/invite/${pairCode}`;
-                    navigator.clipboard.writeText(text);
-                    alert("リンクをコピーしました！");
-                  }} className="push-btn" style={{ padding: '15px', borderRadius: '20px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                    <Copy size={18} /> リンクコピー
-                  </button>
-                  <button onClick={() => {
-                    const text = `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ\n\nhttps://yorisoi.app/invite/${pairCode}`;
-                    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`);
-                  }} className="push-btn" style={{ padding: '15px', borderRadius: '20px', background: '#4cc764', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                    <Share size={18} /> LINEで送る
-                  </button>
-                </div>
                 <button onClick={async () => {
-                  const shareData = { title: 'YORISOI', text: `YORISOIでつながろう🕊️\n体調を言葉にしなくても伝えられるアプリ`, url: `https://yorisoi.app/invite/${pairCode}` };
+                  const shareData = { title: 'YORISOI', text: `YORISOIでつながろう🕊️\n招待コード: ${pairCode}`, url: `https://yorisoi.app/invite/${pairCode}` };
                   if (navigator.share) { try { await navigator.share(shareData); } catch (err) { console.log(err); } }
-                  else { alert("ブラウザが共有に対応していません。コピーをご利用ください。"); }
+                  else { alert("コピーしました！: " + pairCode); }
                 }} className="push-btn" style={{ width: '100%', padding: '18px', borderRadius: '25px', background: '#9ebbd7', color: '#fff', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Share size={20} /> 共有する
                 </button>
@@ -392,13 +387,13 @@ const [stayMode, setStayMode] = useState("");
       )}
 
       {sentMsg && (
-        <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(90,125,154,0.9)', color: '#fff', padding: '12px 25px', borderRadius: '25px', fontSize: '14px', fontWeight: 'bold', zIndex: 1000, boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }}>{sentMsg}</div>
+        <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(90,125,154,0.9)', color: '#fff', padding: '12px 25px', borderRadius: '25px', fontSize: '14px', fontWeight: 'bold', zIndex: 1000 }}>{sentMsg}</div>
       )}
 
       <style jsx>{`
         .push-btn { transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; border: none; outline: none; }
         .push-btn:active { transform: scale(0.92); }
-        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 18px; color: #5a7d9a; display: flex; align-items: center; gap: 8px; }
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 18px; color: #5a7d9a; }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
