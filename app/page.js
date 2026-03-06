@@ -34,7 +34,7 @@ const getBgColor = (lv) => {
 };
 
 export default function YorisoiApp() {
-  const [showIntro, setShowIntro] = useState(true); // 初回画面の表示状態
+  const [showIntro, setShowIntro] = useState(true);
   const [pairCode, setPairCode] = useState("");
   const [role, setRole] = useState(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
@@ -101,7 +101,7 @@ export default function YorisoiApp() {
     if (isNowCompleted) {
       setSentMsg(`「${task}」完了！`);
       setTimeout(() => setSentMsg(null), 1500);
-      await addAction(`✨ 「${task}」をやってくれたよ！`);
+      await addAction(`✨ 「${task}」をやってくれました！`);
     }
     await setDoc(doc(db, "pairs", pairCode), { 
       completedTasks: isNowCompleted ? [...current, task] : current.filter(t => t !== task)
@@ -112,7 +112,7 @@ export default function YorisoiApp() {
     if (status?.actions?.some(a => a.text.includes(msg))) return;
     setSentMsg("送信したよ🕊️");
     setTimeout(() => setSentMsg(null), 1500);
-    await addAction(`💬 パートナー：${msg}`);
+    await addAction(`💬 お相手：${msg}`);
   };
 
   const sendThanks = async (msg) => {
@@ -172,7 +172,7 @@ export default function YorisoiApp() {
 
   const currentBg = getBgColor(status?.level || 0);
   const pageStyle = { padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', color: '#5a7d9a', transition: 'background 0.5s ease' };
-  // 1. 初回イントロ画面
+  // 1. 初回イントロ画面 (文言を家族・大切な人向けに調整)
   if (showIntro) {
     return (
       <div style={{ ...pageStyle, background: '#f0f7ff', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
@@ -180,34 +180,38 @@ export default function YorisoiApp() {
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', letterSpacing: '4px', marginBottom: '10px' }}>YORISOI</h1>
         <p style={{ fontSize: '15px', lineHeight: '1.8', marginBottom: '40px', color: '#7ba2c7' }}>
           体調を言葉にしなくても<br />
-          パートナーに伝えられるアプリ
+          <strong>大切な人に</strong>伝えられるアプリ
         </p>
         <div style={{ textAlign: 'left', background: '#fff', padding: '30px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.04)', width: '100%', marginBottom: '50px' }}>
           <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>①</span><span style={{ fontSize: '14px' }}>体調を入力</span></div>
           <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>②</span><span style={{ fontSize: '14px' }}>お願いが自動生成</span></div>
-          <div style={{ display: 'flex', gap: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>③</span><span style={{ fontSize: '14px' }}>相手に共有</span></div>
+          <div style={{ display: 'flex', gap: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>③</span><span style={{ fontSize: '14px' }}><strong>お相手に</strong>共有</span></div>
         </div>
         <button onClick={() => setShowIntro(false)} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '35px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 6px 20px rgba(158,187,215,0.4)' }}>はじめる</button>
       </div>
     );
   }
 
-  // 2. 役割選択画面
+  // 2. 役割選択画面 (説明をわかりやすく変更)
   if (!pairCode || !role) {
     return (
       <div style={{ ...pageStyle, textAlign: 'center', padding: '80px 20px', background: '#f0f7ff' }}>
         <h1 style={{ color: '#9ebbd7', fontSize: '36px', letterSpacing: '2px' }}>🕊️ YORISOI</h1>
-        <p style={{ fontSize: '14px', marginBottom: '40px' }}>ふたりだけの、寄り添う空間</p>
+        <p style={{ fontSize: '14px', marginBottom: '40px' }}>ふたりのための、寄り添う空間</p>
         <input type="text" placeholder="合言葉を入力" onChange={(e) => setPairCode(e.target.value)} style={{ width: '90%', padding: '20px', borderRadius: '25px', border: 'none', fontSize: '18px', textAlign: 'center', marginBottom: '35px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <button onClick={() => setRole('her')} style={{ padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 4px 10px rgba(158,187,215,0.4)' }}>おつたえ 🕊️</button>
-          <button onClick={() => setRole('him')} style={{ padding: '22px', borderRadius: '30px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold', fontSize: '18px' }}>みまもり 🤝</button>
+          <button onClick={() => setRole('her')} style={{ padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 4px 10px rgba(158,187,215,0.4)' }}>
+            おつたえ 🕊️<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>「体調をおしらせする人」</span>
+          </button>
+          <button onClick={() => setRole('him')} style={{ padding: '22px', borderRadius: '30px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold', fontSize: '18px' }}>
+            みまもり 🤝<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>「サポート・ケアする人」</span>
+          </button>
         </div>
       </div>
     );
   }
 
-  // 3. パートナー（みまもり）側
+  // 3. お相手（サポート・ケア）側
   if (role === 'him') {
     return (
       <div style={pageStyle}>
@@ -269,12 +273,12 @@ export default function YorisoiApp() {
               <div className="info-card" style={{ borderLeft: '6px solid #f87171' }}><span className="card-icon">⚠️</span><div><small className="card-label" style={{ color: '#f87171' }}>遠慮してほしいこと</small><div className="card-text">{status.notToDo?.map(task => (<div key={task} style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}><Circle size={18} color="#f87171" style={{ marginRight: '8px' }} /><span>{task}</span></div>)) || "特になし"}</div></div></div>
             </div>
           </div>
-        ) : <div style={{ textAlign: 'center', marginTop: '120px', opacity: 0.6 }}>🍃 今は落ち着いているようです</div>}
+        ) : <div style={{ textAlign: 'center', marginTop: '120px', opacity: 0.6 }}>🍃 今はお相手も落ち着いているようです</div>}
       </div>
     );
   }
 
-  // 4. 自分（おつたえ）側
+  // 4. 自分（おしらせ）側
   return (
     <div style={pageStyle}>
       {isSetting ? (
@@ -353,7 +357,7 @@ export default function YorisoiApp() {
 
           {status?.completedTasks?.length > 0 && (
             <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', marginBottom: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-              <p style={{ fontSize: '14px', marginBottom: '15px', color: '#82c49a', fontWeight: 'bold' }}>✨ パートナーが動いてくれました！</p>
+              <p style={{ fontSize: '14px', marginBottom: '15px', color: '#82c49a', fontWeight: 'bold' }}>✨ お相手が動いてくれました！</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 {["ありがとう", "だいすき♡", "助かった"].map(m => (<button key={m} onClick={() => sendThanks(m)} className="push-btn thanks-btn">{m}</button>))}
               </div>
