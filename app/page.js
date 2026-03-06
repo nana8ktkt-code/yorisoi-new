@@ -86,10 +86,21 @@ export default function YorisoiApp() {
     setDoc(doc(db, "configs", pairCode), newData);
   };
 
+  // 設定画面：自由記述を保存できるように修正
   const addCustomOption = (type) => {
     const newItem = window.prompt("追加したい項目を入力してください");
     if (newItem && newItem.trim() !== "") {
-      toggleSelection(activeSettingSymptom, settingLevel, type, newItem.trim());
+      const trimmedItem = newItem.trim();
+      const newData = { ...data };
+      if (!newData[activeSettingSymptom]) newData[activeSettingSymptom] = {};
+      if (!newData[activeSettingSymptom][settingLevel]) newData[activeSettingSymptom][settingLevel] = { doing: [], requests: [], notToDo: [] };
+      
+      // まだリストにない場合のみ追加して、自動的にチェック（選択）状態にする
+      if (!newData[activeSettingSymptom][settingLevel][type].includes(trimmedItem)) {
+        newData[activeSettingSymptom][settingLevel][type] = [...newData[activeSettingSymptom][settingLevel][type], trimmedItem];
+        setData(newData);
+        setDoc(doc(db, "configs", pairCode), newData);
+      }
     }
   };
 
