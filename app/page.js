@@ -16,7 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 指定通りに更新：しんどさレベルの文言と絵文字
+// しんどさレベルの定義
 const levelFeelings = ["落ち着いたよ", "違和感あり", "ちょっとしんどい", "しんどい", "かなりつらい", "限界"];
 const levelEmojis = ["🍃", "😅", "😷", "😭", "🥶", "🤮"];
 
@@ -197,10 +197,7 @@ export default function YorisoiApp() {
       <div style={{ ...pageStyle, background: '#f0f7ff', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
         <Heart size={64} color="#9ebbd7" style={{ marginBottom: '20px' }} />
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', letterSpacing: '4px', marginBottom: '10px' }}>YORISOI</h1>
-        <p style={{ fontSize: '15px', lineHeight: '1.8', marginBottom: '40px', color: '#7ba2c7' }}>
-          体調を言葉にしなくても<br />
-          <strong>大切な人に</strong>伝えられるアプリ
-        </p>
+        <p style={{ fontSize: '15px', lineHeight: '1.8', marginBottom: '40px', color: '#7ba2c7' }}>体調を言葉にしなくても<br /><strong>大切な人に</strong>伝えられるアプリ</p>
         <div style={{ textAlign: 'left', background: '#fff', padding: '30px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.04)', width: '100%', marginBottom: '50px' }}>
           <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>①</span><span style={{ fontSize: '14px' }}>体調を入力</span></div>
           <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>②</span><span style={{ fontSize: '14px' }}>お願いが自動生成</span></div>
@@ -332,9 +329,15 @@ export default function YorisoiApp() {
               </div>
 
               <h2 className="section-title">2. しんどさは？</h2>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', background: '#fff', padding: '15px', borderRadius: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '40px' }}>
                 {[0, 1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} className={`push-btn lv-btn ${level === n ? 'active' : ''}`} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : 'transparent', color: level === n ? '#fff' : '#ccc', fontWeight: 'bold', fontSize: '18px' }}>{n}</button>
+                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} className={`push-btn lv-row ${level === n ? 'active' : ''}`} style={{ width: '100%', padding: '15px 25px', borderRadius: '20px', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#5a7d9a', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <span style={{ fontSize: '20px' }}>{levelEmojis[n]}</span>
+                      <span style={{ fontSize: '16px' }}>{levelFeelings[n]}</span>
+                    </div>
+                    <span style={{ fontSize: '14px', opacity: 0.7 }}>Lv.{n}</span>
+                  </button>
                 ))}
               </div>
 
@@ -404,4 +407,3 @@ export default function YorisoiApp() {
     </div>
   );
 }
-
