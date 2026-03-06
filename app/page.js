@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Send, ChevronDown, Plus, Check, Heart, Ban, Info, Sparkles } from 'lucide-react';
+import { Settings, Send, ChevronDown, Plus, Check, Heart, Sparkles } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -16,18 +16,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const levelFeelings = [
-  "いつも通り元気！", "ちょっと違和感あるかも", "地味にじわじわ痛い", 
-  "しんどい、動きたくない", "かなりつらい、助けて", "立っていられない、限界"
-];
+const levelFeelings = ["元気！", "違和感あり", "じわじわ痛い", "しんどい", "かなりつらい", "限界..."];
 
 export default function YorisoiApp() {
   const [pairCode, setPairCode] = useState("");
   const [role, setRole] = useState(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [level, setLevel] = useState(0);
-  const [data, setData] = useState({});
-  const [status, setStatus] = useState(null);
+  const [data, setData] = useState({}); // マスター設定用
+  const [status, setStatus] = useState(null); // リアルタイム体調用
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
@@ -45,12 +42,8 @@ export default function YorisoiApp() {
 
   useEffect(() => {
     if (!pairCode) return;
-    const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
-      if (s.exists()) setStatus(s.data());
-    });
-    const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => {
-      if (s.exists()) setData(s.data());
-    });
+    const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => { if (s.exists()) setStatus(s.data()); });
+    const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { if (s.exists()) setData(s.data()); });
     return () => { unsubStatus(); unsubConfig(); };
   }, [pairCode]);
 
@@ -61,13 +54,18 @@ export default function YorisoiApp() {
       level: newLevel,
       feeling: levelFeelings[newLevel],
       updatedAt: new Date().getTime(),
-      reaction: "" // 更新時にリアクションをリセット
+      reaction: ""
     }, { merge: true });
   };
 
-  const sendReaction = async (text) => {
-    await setDoc(doc(db, "pairs", pairCode), { reaction: text }, { merge: true });
-    alert("彼女に気持ちを伝えました！");
+  const toggleSelection = (symptom, lv, type, item) => {
+    const newData = { ...data };
+    if (!newData[symptom]) newData[symptom] = {};
+    if (!newData[symptom][lv]) newData[symptom][lv] = { doing: [], requests: [], notToDo: [] };
+    const list = newData[symptom][lv][type] || [];
+    newData[symptom][lv][type] = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
+    setData(newData);
+    setDoc(doc(db, "configs", pairCode), newData);
   };
 
   const getPlan = (syms, lv) => {
@@ -81,15 +79,14 @@ export default function YorisoiApp() {
     return combined;
   };
 
-  if (!role) {
+  if (!pairCode || !role) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'sans-serif', background: '#fcfdff', minHeight: '100vh' }}>
-        <h1 style={{ color: '#9ebbd7', letterSpacing: '2px' }}>💞 Yorisoi</h1>
-        <p style={{ color: '#888', fontSize: '14px', marginBottom: '40px' }}>二人だけの合言葉を入力</p>
-        <input type="text" placeholder="合言葉" onChange={(e) => setPairCode(e.target.value)} style={{ width: '80%', padding: '15px', borderRadius: '15px', border: '2px solid #eee', fontSize: '18px', textAlign: 'center', marginBottom: '30px' }} />
+        <h1 style={{ color: '#9ebbd7' }}>💞 Yorisoi</h1>
+        <input type="text" placeholder="合言葉を入力" onChange={(e) => setPairCode(e.target.value)} style={{ width: '80%', padding: '15px', borderRadius: '15px', border: '2px solid #eee', fontSize: '18px', textAlign: 'center', margin: '30px 0' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <button onClick={() => setRole('her')} style={{ padding: '20px', borderRadius: '20px', background: '#9ebbd7', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px' }}>私は体調を伝えたい（彼女）</button>
-          <button onClick={() => setRole('him')} style={{ padding: '20px', borderRadius: '20px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold', fontSize: '16px' }}>私は体調を見守りたい（彼）</button>
+          <button onClick={() => setRole('her')} style={{ padding: '20px', borderRadius: '20px', background: '#9ebbd7', color: '#fff', border: 'none', fontWeight: 'bold' }}>体調を伝えたい（彼女）</button>
+          <button onClick={() => setRole('him')} style={{ padding: '20px', borderRadius: '20px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold' }}>体調を見守りたい（彼）</button>
         </div>
       </div>
     );
@@ -100,10 +97,8 @@ export default function YorisoiApp() {
     return (
       <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif', minHeight: '100vh', background: '#fff9fb' }}>
         <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <span style={{ fontSize: '14px', color: '#ff9eb5', fontWeight: 'bold' }}>Pair: {pairCode}</span>
-          <h2 style={{ fontSize: '22px', margin: '10px 0', color: '#555' }}>💞 彼女の状態</h2>
+          <h2 style={{ fontSize: '22px', color: '#555' }}>💞 彼女の状態</h2>
         </header>
-
         {status && status.symptoms?.length > 0 ? (
           <div>
             <div style={{ background: '#fff', borderRadius: '30px', padding: '30px', textAlign: 'center', boxShadow: '0 10px 30px rgba(255,158,181,0.2)', marginBottom: '25px' }}>
@@ -111,86 +106,81 @@ export default function YorisoiApp() {
               <div style={{ fontSize: '60px', fontWeight: 'bold', color: '#555', margin: '10px 0' }}>Lv.{status.level}</div>
               <div style={{ fontSize: '20px', color: '#ff7a99', fontWeight: 'bold' }}>😭 {status.feeling}</div>
             </div>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={{ background: '#fff', padding: '20px', borderRadius: '20px', borderLeft: '8px solid #9ebbd7' }}>
                 <small style={{ color: '#9ebbd7', fontWeight: 'bold' }}>👟 今の状態</small>
-                <div style={{ fontSize: '16px', marginTop: '5px' }}>{currentPlan.doing.join('、') || "休んでいます"}</div>
+                <div>{currentPlan.doing.join('、') || "休んでいます"}</div>
               </div>
               <div style={{ background: '#fff', padding: '20px', borderRadius: '20px', borderLeft: '8px solid #ff9eb5' }}>
-                <small style={{ color: '#ff9eb5', fontWeight: 'bold' }}>🍼 お願いしたいこと</small>
-                <div style={{ fontSize: '18px', marginTop: '5px', fontWeight: 'bold', color: '#d04040' }}>
-                  {currentPlan.requests.length > 0 ? currentPlan.requests.map(r => `・${r}`).join('\n') : "特にありません。そばにいてね。"}
-                </div>
+                <small style={{ color: '#ff9eb5', fontWeight: 'bold' }}>🍼 お願い</small>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#d04040' }}>{currentPlan.requests.map(r => `・${r}`).join('\n') || "そばにいてね"}</div>
               </div>
               <div style={{ background: '#fff', padding: '20px', borderRadius: '20px', borderLeft: '8px solid #bbb' }}>
-                <small style={{ color: '#777', fontWeight: 'bold' }}>⚠️ 遠慮してほしいこと</small>
-                <div style={{ fontSize: '16px', marginTop: '5px', color: '#666' }}>
-                   {currentPlan.notToDo.length > 0 ? currentPlan.notToDo.map(n => `・${n}`).join('\n') : "特になし"}
-                </div>
+                <small style={{ color: '#777', fontWeight: 'bold' }}>⚠️ NG</small>
+                <div>{currentPlan.notToDo.map(n => `・${n}`).join('\n') || "特になし"}</div>
               </div>
             </div>
-
             <div style={{ marginTop: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <button onClick={() => sendReaction("🌸 助かった！")} style={{ padding: '15px', borderRadius: '15px', background: '#fff', border: '2px solid #ff9eb5', color: '#ff9eb5', fontWeight: 'bold' }}>🌸 助かった</button>
-              <button onClick={() => sendReaction("✨ いつもありがとう")} style={{ padding: '15px', borderRadius: '15px', background: '#ff9eb5', border: 'none', color: '#fff', fontWeight: 'bold' }}>✨ ありがとう</button>
+              <button onClick={() => setDoc(doc(db, "pairs", pairCode), { reaction: "🌸 助かった！" }, { merge: true })} style={{ padding: '15px', borderRadius: '15px', background: '#fff', border: '2px solid #ff9eb5', color: '#ff9eb5', fontWeight: 'bold' }}>🌸 助かった</button>
+              <button onClick={() => setDoc(doc(db, "pairs", pairCode), { reaction: "✨ いつもありがとう" }, { merge: true })} style={{ padding: '15px', borderRadius: '15px', background: '#ff9eb5', border: 'none', color: '#fff', fontWeight: 'bold' }}>✨ ありがとう</button>
             </div>
           </div>
-        ) : (
-          <div style={{ textAlign: 'center', marginTop: '100px', color: '#ccc' }}>
-             <Heart size={60} color="#eee" fill="#eee" style={{ marginBottom: '20px' }} />
-             <p>彼女は今、元気そうです ✨</p>
-          </div>
-        )}
+        ) : <p style={{ textAlign: 'center', color: '#ccc', marginTop: '100px' }}>彼女は今、元気そうです ✨</p>}
       </div>
     );
   }
 
-  // 彼女の画面（発信者）
+  if (isSetting) {
+    const config = data[activeSettingSymptom]?.[settingLevel] || { doing: [], requests: [], notToDo: [] };
+    const allKnown = [...new Set([...defaultSymptoms, ...Object.keys(data)])];
+    return (
+      <div style={{ padding: '20px', background: '#f8f9fa', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+        <button onClick={() => setIsSetting(false)} style={{ border: 'none', padding: '10px 20px', borderRadius: '10px', marginBottom: '20px', background: '#fff', fontWeight: 'bold' }}>◀ 完了</button>
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '20px' }}>
+          <label style={{ fontSize: '12px' }}>設定する症状</label>
+          <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', marginBottom: '20px' }}>
+            {allKnown.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <label style={{ fontSize: '12px' }}>レベル {settingLevel}</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+            {[0,1,2,3,4,5].map(n => <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '35px', height: '35px', borderRadius: '50%', background: settingLevel === n ? '#9ebbd7' : '#fff' }}>{n}</button>)}
+          </div>
+          {/* 設定カテゴリー */}
+          {Object.entries({ doing: '👟 状態', requests: '🍼 お願い', notToDo: '⚠️ NG' }).map(([key, label]) => (
+            <div key={key} style={{ marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '14px' }}>{label}</h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {(key === 'requests' ? defaultOptions.requests.flatMap(g => g.items) : defaultOptions[key]).concat(config[key] || []).filter((v,i,a)=>a.indexOf(v)===i).map(item => (
+                  <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} style={{ padding: '8px 12px', borderRadius: '20px', fontSize: '12px', background: config[key]?.includes(item) ? '#e0f0ff' : '#fff', border: '1px solid #eee' }}>{item}</button>
+                ))}
+                <button onClick={() => { const v = window.prompt("自由入力"); if(v) toggleSelection(activeSettingSymptom, settingLevel, key, v)}} style={{ padding: '8px 12px', borderRadius: '20px', border: '1px dashed #aaa', fontSize: '12px' }}>+ 自由入力</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif', background: '#fff', minHeight: '100vh' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div style={{ fontSize: '14px', color: '#9ebbd7', fontWeight: 'bold' }}>合言葉: {pairCode}</div>
-        <Settings onClick={() => setIsSetting(true)} size={24} color="#ccc" />
+        <Settings onClick={() => setIsSetting(true)} size={24} color="#ccc" style={{ cursor: 'pointer' }} />
       </header>
-
-      {status?.reaction && (
-        <div style={{ background: '#fff0f5', padding: '15px', borderRadius: '15px', marginBottom: '20px', textAlign: 'center', border: '1px solid #ffcadb', color: '#ff7a99', fontWeight: 'bold', animation: 'bounce 1s infinite' }}>
-          彼から：{status.reaction}
-        </div>
-      )}
-
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>1. 症状を選ぶ</h2>
+      {status?.reaction && <div style={{ background: '#fff0f5', padding: '15px', borderRadius: '15px', marginBottom: '20px', textAlign: 'center', color: '#ff7a99', fontWeight: 'bold' }}>彼から：{status.reaction}</div>}
+      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>1. 症状を選ぶ</h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '30px' }}>
         {defaultSymptoms.map(s => (
-          <button key={s} onClick={() => {
-            const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-            setSelectedSymptoms(next);
-            updateStatus(next, level);
-          }} style={{ padding: '12px 18px', borderRadius: '15px', border: '1px solid #eee', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#777', fontWeight: 'bold' }}>{s}</button>
+          <button key={s} onClick={() => { const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s]; setSelectedSymptoms(next); updateStatus(next, level); }} style={{ padding: '12px 18px', borderRadius: '15px', border: '1px solid #eee', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#777', fontWeight: 'bold' }}>{s}</button>
         ))}
       </div>
-
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>2. しんどさは？</h2>
+      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>2. しんどさは？</h2>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        {[0, 1, 2, 3, 4, 5].map(n => (
-          <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #9ebbd7', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>
-        ))}
+        {[0,1,2,3,4,5].map(n => <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #9ebbd7', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>)}
       </div>
       <div style={{ textAlign: 'center', color: '#ff7a99', fontWeight: 'bold', marginBottom: '30px' }}>😭 {levelFeelings[level]}</div>
-
-      <div style={{ textAlign: 'center', padding: '20px', background: '#fcfdff', borderRadius: '20px', border: '2px dashed #eee', color: '#9ebbd7' }}>
-         <Sparkles size={20} style={{ marginBottom: '5px' }} />
-         <div>選ぶだけで彼に届きます</div>
-      </div>
-
-      {/* 通知ボタンを大きく配置 */}
-      <button onClick={() => {
-        const text = `【Yorisoi通知】\n彼女の体調が更新されました！\n${selectedSymptoms.join('＆')} Lv.${level}\n${levelFeelings[level]}\nアプリを確認してね！`;
-        window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`);
-      }} style={{ width: '100%', marginTop: '30px', padding: '20px', borderRadius: '35px', background: '#4cc764', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px', boxShadow: '0 4px 15px rgba(76,199,100,0.3)' }}>
-        彼にLINEで通知する（超重要）
-      </button>
+      <button onClick={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【Yorisoi通知】\n彼女の体調が更新されました！\n${selectedSymptoms.join('＆')} Lv.${level}\n${levelFeelings[level]}\nアプリを確認してね！`)}`)} style={{ width: '100%', padding: '20px', borderRadius: '35px', background: '#4cc764', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px' }}>彼にLINEで通知する（重要）</button>
     </div>
   );
 }
