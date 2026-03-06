@@ -71,7 +71,6 @@ export default function YorisoiApp() {
       mood: mood !== null ? mood : (status?.mood || ""),
       updatedAt: new Date().getTime(), doing: plan.doing, requests: plan.requests, notToDo: plan.notToDo,
       completedTasks: status?.completedTasks || [],
-      // 履歴を配列で保持するように修正
       actions: status?.actions || []
     }, { merge: true });
   };
@@ -88,9 +87,11 @@ export default function YorisoiApp() {
   };
 
   const addAction = async (msg) => {
-    const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
     const currentActions = status?.actions || [];
-    // 直近5件まで保持
+    // 直前のメッセージと同じなら追加しない
+    if (currentActions.length > 0 && currentActions[0].text === msg) return;
+
+    const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
     const nextActions = [newAction, ...currentActions].slice(0, 5);
     await setDoc(doc(db, "pairs", pairCode), { actions: nextActions }, { merge: true });
   };
@@ -220,7 +221,7 @@ export default function YorisoiApp() {
                   );
                 })}
               </div>
-              <button onClick={() => sendQuickReply("見守ってるよ 🧸")} className="push-btn" style={{ width: '100%', marginTop: '12px', padding: '15px', borderRadius: '15px', background: '#fff', border: '1px dashed #9ebbd7', color: '#9ebbd7', fontSize: '14px', fontWeight: 'bold' }}>見守ってるよ 🧸</button>
+              <button onClick={() => sendQuickReply("見守ってるよ 🧸")} className="push-btn" style={{ width: '100%', marginTop: '12px', padding: '15px', borderRadius: '15px', background: '#fff', border: '1px dashed #9ebbd7', color: '#9ebbd7', fontSize: '14px', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>見守ってるよ 🧸</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -281,7 +282,6 @@ export default function YorisoiApp() {
             </div>
           </header>
 
-          {/* 複数の履歴を表示できるようにループ処理に修正 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '25px' }}>
             {status?.actions?.map((action) => (
               <div key={action.id} className="action-notification">
@@ -333,7 +333,7 @@ export default function YorisoiApp() {
         </>
       )}
       <style jsx>{`
-        .push-btn { transition: all 0.1s active; border: none; cursor: pointer; }
+        .push-btn { transition: all 0.1s; border: none; cursor: pointer; outline: none; }
         .push-btn:active { transform: scale(0.96); opacity: 0.8; }
         .lv-btn { width: 48px; height: 48px; border-radius: 50% !important; background: #fff; color: #9ebbd7; font-weight: bold; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .lv-btn.active { background: #9ebbd7; color: #fff; transform: scale(1.1); }
@@ -341,7 +341,7 @@ export default function YorisoiApp() {
         .chip.active { background: #9ebbd7; color: #fff; }
         .mood-btn { padding: 6px 14px; border-radius: 15px; background: rgba(255,255,255,0.6); color: #888; font-size: 12px; border: 1px solid transparent; }
         .mood-btn.active { background: #fff; color: #9ebbd7; border-color: #9ebbd7; font-weight: bold; }
-        .section-title { fontSize: 16px; font-weight: bold; margin-bottom: 15px; opacity: 0.9; }
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; opacity: 0.9; }
         .info-card { background: #fff; padding: 20px; border-radius: 25px; display: flex; gap: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.03); }
         .card-icon { font-size: 24px; }
         .card-label { font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -352,6 +352,7 @@ export default function YorisoiApp() {
         .is-sent { opacity: 0.5; filter: grayscale(0.8); }
         .action-notification { background: #fff; padding: 12px 18px; border-radius: 20px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 12px rgba(255,235,59,0.15); }
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .quick-reply-btn:active { transform: scale(0.96); opacity: 0.7; }
       `}</style>
     </div>
   );
