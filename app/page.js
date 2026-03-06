@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb, Coffee } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -28,7 +28,6 @@ const getHint = (lv) => {
   return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
 };
 
-// レベルに応じた背景色の設定
 const getBgColor = (lv) => {
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
@@ -71,7 +70,9 @@ export default function YorisoiApp() {
       symptoms: newSymptoms, level: newLevel, feeling: levelFeelings[newLevel], emoji: levelEmojis[newLevel],
       mood: mood !== null ? mood : (status?.mood || ""),
       updatedAt: new Date().getTime(), doing: plan.doing, requests: plan.requests, notToDo: plan.notToDo,
-      completedTasks: status?.completedTasks || [], lastAction: "", lastActionId: "" 
+      completedTasks: status?.completedTasks || [],
+      // 履歴を配列で保持するように修正
+      actions: status?.actions || []
     }, { merge: true });
   };
 
@@ -82,8 +83,16 @@ export default function YorisoiApp() {
     await setDoc(doc(db, "pairs", pairCode), {
       symptoms: [], level: 0, feeling: levelFeelings[0], emoji: levelEmojis[0], mood: "",
       updatedAt: new Date().getTime(), doing: [], requests: [], notToDo: [],
-      completedTasks: [], thanks: "", lastAction: "", lastActionId: ""
+      completedTasks: [], thanks: "", actions: []
     });
+  };
+
+  const addAction = async (msg) => {
+    const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
+    const currentActions = status?.actions || [];
+    // 直近5件まで保持
+    const nextActions = [newAction, ...currentActions].slice(0, 5);
+    await setDoc(doc(db, "pairs", pairCode), { actions: nextActions }, { merge: true });
   };
 
   const toggleTask = async (task) => {
@@ -92,26 +101,21 @@ export default function YorisoiApp() {
     if (isNowCompleted) {
       setSentMsg(`「${task}」完了！`);
       setTimeout(() => setSentMsg(null), 1500);
+      await addAction(`✨ 「${task}」をやってくれたよ！`);
     }
     await setDoc(doc(db, "pairs", pairCode), { 
-      completedTasks: isNowCompleted ? [...current, task] : current.filter(t => t !== task),
-      lastAction: isNowCompleted ? `✨ 「${task}」をやってくれたよ！` : "",
-      lastActionId: isNowCompleted ? Date.now().toString() : ""
+      completedTasks: isNowCompleted ? [...current, task] : current.filter(t => t !== task)
     }, { merge: true });
   };
 
   const sendQuickReply = async (msg) => {
     setSentMsg("送信したよ🕊️");
     setTimeout(() => setSentMsg(null), 1500);
-    await setDoc(doc(db, "pairs", pairCode), { 
-      lastAction: `💬 パートナー：${msg}`,
-      lastActionId: Date.now().toString(),
-      updatedAt: new Date().getTime() 
-    }, { merge: true });
+    await addAction(`💬 パートナー：${msg}`);
   };
 
   const sendThanks = async (msg) => {
-    await setDoc(doc(db, "pairs", pairCode), { thanks: msg, lastAction: "", lastActionId: "", updatedAt: new Date().getTime() }, { merge: true });
+    await setDoc(doc(db, "pairs", pairCode), { thanks: msg, actions: [], updatedAt: new Date().getTime() }, { merge: true });
     alert("感謝を伝えました🕊️");
   };
 
@@ -208,9 +212,9 @@ export default function YorisoiApp() {
                   { m: "あとでやるね", c: "#fff9c4", t: "#fbc02d" },
                   { m: "向かってるよ", c: "#e8f5e9", t: "#66bb6a" }
                 ].map(item => {
-                  const isSent = status?.lastAction?.includes(item.m);
+                  const isSent = status?.actions?.some(a => a.text.includes(item.m));
                   return (
-                    <button key={item.m} onClick={() => sendQuickReply(item.m)} className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`} style={{ background: isSent ? '#eee' : item.c, color: isSent ? '#888' : item.t, border: `1px solid ${isSent ? '#ccc' : item.c}` }}>
+                    <button key={item.m} onClick={() => sendQuickReply(item.m)} className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`} style={{ background: '#fff', color: isSent ? '#ccc' : item.t, border: `1px dashed ${isSent ? '#ccc' : item.t}`, padding: '15px 5px', borderRadius: '15px' }}>
                       {isSent ? <Check size={14} style={{ marginRight: '4px' }} /> : null}{item.m}
                     </button>
                   );
@@ -277,7 +281,16 @@ export default function YorisoiApp() {
             </div>
           </header>
 
-          {status?.lastAction && (<div key={status.lastActionId} className="action-notification"><Sparkles size={20} /><span>{status.lastAction}</span><Sparkles size={20} /></div>)}
+          {/* 複数の履歴を表示できるようにループ処理に修正 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '25px' }}>
+            {status?.actions?.map((action) => (
+              <div key={action.id} className="action-notification">
+                <Sparkles size={18} />
+                <span>{action.text}</span>
+                <Sparkles size={18} />
+              </div>
+            ))}
+          </div>
 
           <h2 className="section-title">1. 症状を選ぶ</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '30px' }}>
@@ -324,7 +337,6 @@ export default function YorisoiApp() {
         .push-btn:active { transform: scale(0.96); opacity: 0.8; }
         .lv-btn { width: 48px; height: 48px; border-radius: 50% !important; background: #fff; color: #9ebbd7; font-weight: bold; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .lv-btn.active { background: #9ebbd7; color: #fff; transform: scale(1.1); }
-        .quick-reply-btn { padding: 15px 5px; border-radius: 18px !important; font-size: 13px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
         .chip { padding: 12px 18px; border-radius: 20px; background: #fff; color: #777; font-weight: bold; font-size: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.04); }
         .chip.active { background: #9ebbd7; color: #fff; }
         .mood-btn { padding: 6px 14px; border-radius: 15px; background: rgba(255,255,255,0.6); color: #888; font-size: 12px; border: 1px solid transparent; }
@@ -338,9 +350,7 @@ export default function YorisoiApp() {
         .line-btn { width: 100%; padding: 22px; border-radius: 35px; background: #4cc764; color: #fff; font-weight: bold; font-size: 17px; box-shadow: 0 6px 15px rgba(76,199,100,0.3); }
         .thanks-btn { padding: 12px; border-radius: 15px; background: #f0f7ff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 13px; font-weight: bold; }
         .is-sent { opacity: 0.5; filter: grayscale(0.8); }
-        .sent-toast { position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #5a7d9a; color: #fff; padding: 6px 16px; border-radius: 12px; font-size: 13px; animation: floatUp 1.5s ease-out forwards; z-index: 10; }
-        @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0); } 20% { opacity: 1; transform: translate(-50%, -10px); } 80% { opacity: 1; transform: translate(-50%, -10px); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
-        .action-notification { background: #fff; padding: 18px; border-radius: 25px; margin-bottom: 25px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 8px 20px rgba(255,235,59,0.2); }
+        .action-notification { background: #fff; padding: 12px 18px; border-radius: 20px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 12px rgba(255,235,59,0.15); }
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
       `}</style>
     </div>
