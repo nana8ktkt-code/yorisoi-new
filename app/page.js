@@ -33,7 +33,6 @@ export default function YorisoiApp() {
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultOptions = {
-    // 状態に「お風呂入れない」を追加しました
     doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いてきた", "声がでません", "お風呂入れない"],
     requests: [
       { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
@@ -94,7 +93,6 @@ export default function YorisoiApp() {
       const newData = { ...data };
       if (!newData[activeSettingSymptom]) newData[activeSettingSymptom] = {};
       if (!newData[activeSettingSymptom][settingLevel]) newData[activeSettingSymptom][settingLevel] = { doing: [], requests: [], notToDo: [] };
-      
       if (!newData[activeSettingSymptom][settingLevel][type].includes(trimmedItem)) {
         newData[activeSettingSymptom][settingLevel][type] = [...newData[activeSettingSymptom][settingLevel][type], trimmedItem];
         setData(newData);
@@ -204,30 +202,4 @@ export default function YorisoiApp() {
             </div>
             {Object.entries({ doing: '👟 状態', requests: '📋 お願い', notToDo: '⚠️ 遠慮してほしいこと' }).map(([key, label]) => (
               <div key={key} style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <h4 style={{ fontSize: '14px', margin: 0 }}>{label}</h4>
-                  <button onClick={() => addCustomOption(key)} style={{ background: 'none', border: 'none', color: '#9ebbd7', display: 'flex', alignItems: 'center', fontSize: '12px', cursor: 'pointer' }}>
-                    <Plus size={14} style={{ marginRight: '2px' }} /> 追加
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {(key === 'requests' ? defaultOptions.requests.flatMap(g => g.items) : defaultOptions[key]).concat(data[activeSettingSymptom]?.[settingLevel]?.[key] || []).filter((v,i,a)=>a.indexOf(v)===i).map(item => (
-                    <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} style={{ padding: '8px 12px', borderRadius: '15px', fontSize: '12px', background: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#9ebbd7' : '#fff', color: data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? '#fff' : '#777', border: '1px solid #eee' }}>{item}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <>
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>🕊️ {pairCode}</div>
-            <Settings onClick={() => setIsSetting(true)} size={26} color="#9ebbd7" style={{ cursor: 'pointer' }} />
-          </header>
-          {status?.completedTasks?.length > 0 && (
-            <div style={{ background: '#fff', padding: '15px', borderRadius: '20px', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
-              <p style={{ fontSize: '13px', textAlign: 'center', marginBottom: '10px', color: '#82c49a' }}>✨ みまもり担当が動いてくれました！</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                {["ありがとう", "だいすき♡", "助かった"].map(m => (
-                  <button key={m} onClick
+                <div style={{ display: 'flex', justifyContent: 'space
