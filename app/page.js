@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3, Plus } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Send, Trash2 } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -61,19 +61,51 @@ export default function YorisoiApp() {
       doing: plan.doing,
       requests: plan.requests,
       notToDo: plan.notToDo,
-      completedTasks: status?.completedTasks || []
+      completedTasks: status?.completedTasks || [],
+      lastAction: "" // 更新時にアクション表示をクリア
     }, { merge: true });
+  };
+
+  const resetStatus = async () => {
+    if (!confirm("体調データをリセットして「落ち着いたよ」に戻しますか？")) return;
+    setSelectedSymptoms([]);
+    setLevel(0);
+    await setDoc(doc(db, "pairs", pairCode), {
+      symptoms: [],
+      level: 0,
+      feeling: levelFeelings[0],
+      emoji: levelEmojis[0],
+      updatedAt: new Date().getTime(),
+      doing: [],
+      requests: [],
+      notToDo: [],
+      completedTasks: [],
+      thanks: "",
+      lastAction: ""
+    });
   };
 
   const toggleTask = async (task) => {
     const current = status?.completedTasks || [];
-    const next = current.includes(task) ? current.filter(t => t !== task) : [...current, task];
-    await setDoc(doc(db, "pairs", pairCode), { completedTasks: next }, { merge: true });
+    const isNowCompleted = !current.includes(task);
+    const next = isNowCompleted ? [...current, task] : current.filter(t => t !== task);
+    
+    await setDoc(doc(db, "pairs", pairCode), { 
+      completedTasks: next,
+      lastAction: isNowCompleted ? `✨ 「${task}」を完了しました！` : "" 
+    }, { merge: true });
+  };
+
+  const sendQuickReply = async (msg) => {
+    await setDoc(doc(db, "pairs", pairCode), { 
+      lastAction: `💬 パートナー：${msg}`,
+      updatedAt: new Date().getTime() 
+    }, { merge: true });
   };
 
   const sendThanks = async (msg) => {
-    await setDoc(doc(db, "pairs", pairCode), { thanks: msg, updatedAt: new Date().getTime() }, { merge: true });
-    alert("「みまもり🤝」の方に感謝を伝えました🕊️");
+    await setDoc(doc(db, "pairs", pairCode), { thanks: msg, lastAction: "", updatedAt: new Date().getTime() }, { merge: true });
+    alert("感謝を伝えました🕊️");
   };
 
   const toggleSelection = (symptom, lv, type, item) => {
@@ -127,7 +159,6 @@ export default function YorisoiApp() {
   };
 
   const pageStyle = { padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh', color: '#5a7d9a' };
-
   if (!pairCode || !role) {
     return (
       <div style={{ ...pageStyle, textAlign: 'center', padding: '60px 20px' }}>
@@ -141,7 +172,8 @@ export default function YorisoiApp() {
       </div>
     );
   }
-if (role === 'him') {
+
+  if (role === 'him') {
     return (
       <div style={pageStyle}>
         <header style={{ textAlign: 'center', marginBottom: '20px' }}><h2>🤝 みまもり画面</h2></header>
@@ -153,6 +185,14 @@ if (role === 'him') {
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: status.level === 0 ? '#82c49a' : '#ff9eb5' }}>{status.emoji} {status.feeling}</div>
               {status.thanks && <div style={{ marginTop: '15px', padding: '10px', background: '#fff0f5', borderRadius: '15px', color: '#ff7a99', fontSize: '14px' }}>💖 {status.thanks}</div>}
             </div>
+            
+            {/* パートナー用クイック返信 */}
+            <div style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              {["了解！", "あとでやるね", "向かってるよ"].map(m => (
+                <button key={m} onClick={() => sendQuickReply(m)} style={{ padding: '12px 5px', borderRadius: '15px', background: '#fff', border: '1px solid #9ebbd7', color: '#9ebbd7', fontSize: '12px' }}>{m}</button>
+              ))}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={{ background: '#fff', padding: '18px', borderRadius: '20px', borderLeft: '6px solid #9ebbd7' }}>
                 <small style={{ fontWeight: 'bold', color: '#9ebbd7' }}>👟 今の状態</small>
@@ -173,9 +213,9 @@ if (role === 'him') {
                 <small style={{ fontWeight: 'bold', color: '#f87171' }}>⚠️ 遠慮してほしいこと</small>
                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {status.notToDo?.map(task => (
-                    <div key={task} onClick={() => toggleTask(task)} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', opacity: status.completedTasks?.includes(task) ? 0.5 : 1 }}>
-                      {status.completedTasks?.includes(task) ? <CheckCircle2 size={20} color="#82c49a" style={{ marginRight: '8px' }} /> : <Circle size={20} color="#ccc" style={{ marginRight: '8px' }} />}
-                      <span style={{ textDecoration: status.completedTasks?.includes(task) ? 'line-through' : 'none' }}>{task}</span>
+                    <div key={task} style={{ display: 'flex', alignItems: 'center' }}>
+                      <Circle size={20} color="#f87171" style={{ marginRight: '8px' }} />
+                      <span>{task}</span>
                     </div>
                   )) || "特になし"}
                 </div>
@@ -220,11 +260,25 @@ if (role === 'him') {
         <>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div style={{ fontSize: '14px', fontWeight: 'bold' }}>🕊️ {pairCode}</div>
-            <Settings onClick={() => setIsSetting(true)} size={26} color="#9ebbd7" style={{ cursor: 'pointer' }} />
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <Trash2 onClick={resetStatus} size={24} color="#f87171" style={{ cursor: 'pointer' }} />
+              <Settings onClick={() => setIsSetting(true)} size={26} color="#9ebbd7" style={{ cursor: 'pointer' }} />
+            </div>
           </header>
+
+          {/* リアクション通知エリア */}
+          {status?.lastAction && (
+            <div style={{ background: '#fff', padding: '15px', borderRadius: '20px', marginBottom: '20px', border: '2px solid #ffeb3b', animation: 'bounce 1s infinite' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#d4af37', fontWeight: 'bold' }}>
+                <Sparkles size={20} />
+                <span>{status.lastAction}</span>
+              </div>
+            </div>
+          )}
+
           {status?.completedTasks?.length > 0 && (
             <div style={{ background: '#fff', padding: '15px', borderRadius: '20px', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
-              <p style={{ fontSize: '13px', textAlign: 'center', marginBottom: '10px', color: '#82c49a' }}>✨ みまもり担当が動いてくれました！</p>
+              <p style={{ fontSize: '13px', textAlign: 'center', marginBottom: '10px', color: '#82c49a' }}>✨ パートナーが動いてくれました！</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 {["ありがとう", "だいすき♡", "助かった"].map(m => (
                   <button key={m} onClick={() => sendThanks(m)} style={{ padding: '10px', borderRadius: '12px', background: '#f0f7ff', border: '1px solid #9ebbd7', color: '#9ebbd7', fontSize: '12px', fontWeight: 'bold' }}>{m}</button>
@@ -232,6 +286,7 @@ if (role === 'him') {
               </div>
             </div>
           )}
+
           <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>1. 症状を選ぶ</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
             {defaultSymptoms.map(s => (
@@ -262,6 +317,12 @@ if (role === 'him') {
           <button onClick={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【YORISOI🕊️】\n体調更新しました：${selectedSymptoms.join('＆')} Lv.${level}\n${levelEmojis[level]}${levelFeelings[level]}\nアプリで詳細を確認してね！`)}`)} style={{ width: '100%', padding: '20px', borderRadius: '30px', background: '#4cc764', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px' }}>LINEで通知する（重要）</button>
         </>
       )}
+      <style jsx>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
     </div>
   );
 }
