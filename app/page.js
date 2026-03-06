@@ -50,7 +50,8 @@ export default function YorisoiApp() {
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
   const [sentMsg, setSentMsg] = useState(null);
-
+const [mood, setMood] = useState("");
+const [stayMode, setStayMode] = useState("");
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultOptions = {
     doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いたきた", "声がでません", "お風呂入れない"],
