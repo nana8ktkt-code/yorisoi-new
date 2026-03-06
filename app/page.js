@@ -25,7 +25,7 @@ const getHint = (lv) => {
   if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
   if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
   if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
-  return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
+  return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ. ";
 };
 
 const getBgColor = (lv) => {
@@ -33,12 +33,12 @@ const getBgColor = (lv) => {
   return colors[lv] || "#f0f7ff";
 };
 
-// 6桁のランダムコード生成
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
 export default function YorisoiApp() {
   const [showIntro, setShowIntro] = useState(true);
   const [pairCode, setPairCode] = useState("");
+  const [inputCode, setInputCode] = useState(""); // 入力用の一時状態
   const [role, setRole] = useState(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [level, setLevel] = useState(0);
@@ -71,6 +71,13 @@ export default function YorisoiApp() {
     const code = generateCode();
     setPairCode(code);
     setRole('her');
+  };
+
+  const startAsSupporter = () => {
+    if (inputCode.length >= 4) {
+      setPairCode(inputCode.toUpperCase());
+      setRole('him');
+    }
   };
 
   const updateStatus = async (newSymptoms, newLevel, customPlan = null, mood = null) => {
@@ -201,15 +208,13 @@ export default function YorisoiApp() {
     );
   }
 
-  // 役割選択とコード入力画面
-  if (!pairCode || !role) {
+  if (!role) {
     return (
       <div style={{ ...pageStyle, textAlign: 'center', padding: '80px 20px', background: '#f0f7ff' }}>
         <h1 style={{ color: '#9ebbd7', fontSize: '36px', letterSpacing: '2px' }}>🕊️ YORISOI</h1>
         <p style={{ fontSize: '14px', marginBottom: '60px' }}>ふたりのための、寄り添う空間</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-          {/* おしらせ側：コードを生成 */}
           <div>
             <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 4px 10px rgba(158,187,215,0.4)' }}>
               おつたえ 🕊️<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>「体調をおしらせする人」</span>
@@ -219,17 +224,16 @@ export default function YorisoiApp() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: 0.3 }}><hr style={{ flex: 1 }} /> or <hr style={{ flex: 1 }} /></div>
 
-          {/* みまもり側：コードを入力 */}
           <div>
             <p style={{ fontSize: '14px', marginBottom: '15px', fontWeight: 'bold' }}>招待コードを入力して参加</p>
             <input 
               type="text" 
               placeholder="AX92KD" 
-              value={pairCode}
-              onChange={(e) => setPairCode(e.target.value.toUpperCase())}
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
               style={{ width: '100%', padding: '18px', borderRadius: '25px', border: 'none', fontSize: '24px', letterSpacing: '4px', textAlign: 'center', marginBottom: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }} 
             />
-            <button onClick={() => setRole('him')} disabled={pairCode.length < 4} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold', fontSize: '18px', opacity: pairCode.length < 4 ? 0.5 : 1 }}>
+            <button onClick={startAsSupporter} disabled={inputCode.length < 4} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#fff', color: '#9ebbd7', border: '2px solid #9ebbd7', fontWeight: 'bold', fontSize: '18px', opacity: inputCode.length < 4 ? 0.5 : 1 }}>
               みまもり 🤝<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>「サポート・ケアする人」</span>
             </button>
           </div>
@@ -238,7 +242,6 @@ export default function YorisoiApp() {
     );
   }
 
-  // 招待中画面 (おしらせ側でまだデータがない場合)
   if (role === 'her' && !status && selectedSymptoms.length === 0) {
     return (
       <div style={pageStyle}>
@@ -311,7 +314,7 @@ export default function YorisoiApp() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="info-card" style={{ borderLeft: '6px solid #9ebbd7' }}><span className="card-icon">👟</span><div><small className="card-label" style={{ color: '#9ebbd7' }}>今の状態</small><div className="card-text">{status.doing?.join('、') || "ゆっくりしています"}</div></div></div>
-              <div className="info-card" style={{ borderLeft: '6 solid #ff9eb5' }}><span className="card-icon">📋</span><div><small className="card-label" style={{ color: '#ff9eb5' }}>お願い（できたらチェック）</small><div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className="info-card" style={{ borderLeft: '6px solid #ff9eb5' }}><span className="card-icon">📋</span><div><small className="card-label" style={{ color: '#ff9eb5' }}>お願い（できたらチェック）</small><div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {status.requests?.map(task => {
                   const isDone = status.completedTasks?.includes(task);
                   return (
