@@ -328,17 +328,16 @@ export default function YorisoiApp() {
                 ))}
               </div>
 
+              {/* 2. しんどさは？（1枚目の画像の操作感を再現） */}
               <h2 className="section-title">2. しんどさは？</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '40px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '15px' }}>
                 {[0, 1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} className={`push-btn lv-row ${level === n ? 'active' : ''}`} style={{ width: '100%', padding: '15px 25px', borderRadius: '20px', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#5a7d9a', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <span style={{ fontSize: '20px' }}>{levelEmojis[n]}</span>
-                      <span style={{ fontSize: '16px' }}>{levelFeelings[n]}</span>
-                    </div>
-                    <span style={{ fontSize: '14px', opacity: 0.7 }}>Lv.{n}</span>
-                  </button>
+                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} className={`push-btn lv-btn ${level === n ? 'active' : ''}`} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>{n}</button>
                 ))}
+              </div>
+              <div style={{ background: '#fff', borderRadius: '25px', padding: '30px 20px', textAlign: 'center', marginBottom: '35px', boxShadow: '0 8px 20px rgba(0,0,0,0.03)' }}>
+                <div style={{ fontSize: '50px', marginBottom: '10px' }}>{levelEmojis[level]}</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{levelFeelings[level]}</div>
               </div>
 
               <h2 className="section-title">3. 内容をチェック</h2>
@@ -351,9 +350,7 @@ export default function YorisoiApp() {
                   <div key={item.id} onClick={() => editPlanItem(item.id)} className="push-btn plan-card" style={{ borderLeft: `6px solid ${item.color}`, background: '#fff', padding: '18px 22px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                     <div>
                       <small style={{ fontWeight: 'bold', color: item.color, fontSize: '11px' }}>{item.label}</small>
-                      <div style={{ fontSize: '15px', marginTop: '4px' }}>
-                        {status?.[item.id] && status[item.id].length > 0 ? status[item.id].join('、') : "未入力"}
-                      </div>
+                      <div style={{ fontSize: '15px', marginTop: '4px' }}>{status?.[item.id] && status[item.id].length > 0 ? status[item.id].join('、') : "未入力"}</div>
                     </div>
                     <Edit3 size={18} color="#ccc" />
                   </div>
