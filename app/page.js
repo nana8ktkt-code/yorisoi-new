@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb, Heart } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -34,6 +34,7 @@ const getBgColor = (lv) => {
 };
 
 export default function YorisoiApp() {
+  const [showIntro, setShowIntro] = useState(true); // 初回画面の表示状態
   const [pairCode, setPairCode] = useState("");
   const [role, setRole] = useState(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
@@ -88,9 +89,7 @@ export default function YorisoiApp() {
 
   const addAction = async (msg) => {
     const currentActions = status?.actions || [];
-    // 全履歴の中に同じメッセージがあれば追加しない（重複防止の強化）
     if (currentActions.some(a => a.text === msg)) return;
-
     const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
     const nextActions = [newAction, ...currentActions].slice(0, 5);
     await setDoc(doc(db, "pairs", pairCode), { actions: nextActions }, { merge: true });
@@ -110,9 +109,7 @@ export default function YorisoiApp() {
   };
 
   const sendQuickReply = async (msg) => {
-    // 送信済みかチェック（連打防止）
     if (status?.actions?.some(a => a.text.includes(msg))) return;
-    
     setSentMsg("送信したよ🕊️");
     setTimeout(() => setSentMsg(null), 1500);
     await addAction(`💬 パートナー：${msg}`);
@@ -175,6 +172,27 @@ export default function YorisoiApp() {
 
   const currentBg = getBgColor(status?.level || 0);
   const pageStyle = { padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', color: '#5a7d9a', transition: 'background 0.5s ease' };
+  // 1. 初回イントロ画面
+  if (showIntro) {
+    return (
+      <div style={{ ...pageStyle, background: '#f0f7ff', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
+        <Heart size={64} color="#9ebbd7" style={{ marginBottom: '20px' }} />
+        <h1 style={{ color: '#9ebbd7', fontSize: '32px', letterSpacing: '4px', marginBottom: '10px' }}>YORISOI</h1>
+        <p style={{ fontSize: '15px', lineHeight: '1.8', marginBottom: '40px', color: '#7ba2c7' }}>
+          体調を言葉にしなくても<br />
+          パートナーに伝えられるアプリ
+        </p>
+        <div style={{ textAlign: 'left', background: '#fff', padding: '30px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.04)', width: '100%', marginBottom: '50px' }}>
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>①</span><span style={{ fontSize: '14px' }}>体調を入力</span></div>
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>②</span><span style={{ fontSize: '14px' }}>お願いが自動生成</span></div>
+          <div style={{ display: 'flex', gap: '15px' }}><span style={{ color: '#9ebbd7', fontWeight: 'bold' }}>③</span><span style={{ fontSize: '14px' }}>相手に共有</span></div>
+        </div>
+        <button onClick={() => setShowIntro(false)} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '35px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', fontSize: '18px', boxShadow: '0 6px 20px rgba(158,187,215,0.4)' }}>はじめる</button>
+      </div>
+    );
+  }
+
+  // 2. 役割選択画面
   if (!pairCode || !role) {
     return (
       <div style={{ ...pageStyle, textAlign: 'center', padding: '80px 20px', background: '#f0f7ff' }}>
@@ -189,6 +207,7 @@ export default function YorisoiApp() {
     );
   }
 
+  // 3. パートナー（みまもり）側
   if (role === 'him') {
     return (
       <div style={pageStyle}>
@@ -224,7 +243,6 @@ export default function YorisoiApp() {
                   );
                 })}
               </div>
-              {/* 「見守ってるよ」も他のボタンと同じ「送信済みチェック」の仕様に修正 */}
               {(() => {
                 const isSent = status?.actions?.some(a => a.text.includes("見守ってるよ 🧸"));
                 return (
@@ -256,6 +274,7 @@ export default function YorisoiApp() {
     );
   }
 
+  // 4. 自分（おつたえ）側
   return (
     <div style={pageStyle}>
       {isSetting ? (
