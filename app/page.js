@@ -88,8 +88,8 @@ export default function YorisoiApp() {
 
   const addAction = async (msg) => {
     const currentActions = status?.actions || [];
-    // 直前のメッセージと同じなら追加しない
-    if (currentActions.length > 0 && currentActions[0].text === msg) return;
+    // 全履歴の中に同じメッセージがあれば追加しない（重複防止の強化）
+    if (currentActions.some(a => a.text === msg)) return;
 
     const newAction = { id: Date.now().toString(), text: msg, time: new Date().getTime() };
     const nextActions = [newAction, ...currentActions].slice(0, 5);
@@ -110,6 +110,9 @@ export default function YorisoiApp() {
   };
 
   const sendQuickReply = async (msg) => {
+    // 送信済みかチェック（連打防止）
+    if (status?.actions?.some(a => a.text.includes(msg))) return;
+    
     setSentMsg("送信したよ🕊️");
     setTimeout(() => setSentMsg(null), 1500);
     await addAction(`💬 パートナー：${msg}`);
@@ -209,9 +212,9 @@ export default function YorisoiApp() {
               {sentMsg && <div className="sent-toast">{sentMsg}</div>}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {[
-                  { m: "任せて！", c: "#e3f2fd", t: "#42a5f5" },
-                  { m: "あとでやるね", c: "#fff9c4", t: "#fbc02d" },
-                  { m: "向かってるよ", c: "#e8f5e9", t: "#66bb6a" }
+                  { m: "任せて！", t: "#42a5f5" },
+                  { m: "あとでやるね", t: "#fbc02d" },
+                  { m: "向かってるよ", t: "#66bb6a" }
                 ].map(item => {
                   const isSent = status?.actions?.some(a => a.text.includes(item.m));
                   return (
@@ -221,7 +224,15 @@ export default function YorisoiApp() {
                   );
                 })}
               </div>
-              <button onClick={() => sendQuickReply("見守ってるよ 🧸")} className="push-btn" style={{ width: '100%', marginTop: '12px', padding: '15px', borderRadius: '15px', background: '#fff', border: '1px dashed #9ebbd7', color: '#9ebbd7', fontSize: '14px', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>見守ってるよ 🧸</button>
+              {/* 「見守ってるよ」も他のボタンと同じ「送信済みチェック」の仕様に修正 */}
+              {(() => {
+                const isSent = status?.actions?.some(a => a.text.includes("見守ってるよ 🧸"));
+                return (
+                  <button onClick={() => sendQuickReply("見守ってるよ 🧸")} className={`push-btn ${isSent ? 'is-sent' : ''}`} style={{ width: '100%', marginTop: '12px', padding: '15px', borderRadius: '15px', background: '#fff', border: `1px dashed ${isSent ? '#ccc' : '#9ebbd7'}`, color: isSent ? '#ccc' : '#9ebbd7', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {isSent && <Check size={16} />}見守ってるよ 🧸
+                  </button>
+                );
+              })()}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -349,10 +360,9 @@ export default function YorisoiApp() {
         .plan-card { background: #fff; padding: 18px 22px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .line-btn { width: 100%; padding: 22px; border-radius: 35px; background: #4cc764; color: #fff; font-weight: bold; font-size: 17px; box-shadow: 0 6px 15px rgba(76,199,100,0.3); }
         .thanks-btn { padding: 12px; border-radius: 15px; background: #f0f7ff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 13px; font-weight: bold; }
-        .is-sent { opacity: 0.5; filter: grayscale(0.8); }
+        .is-sent { opacity: 0.5; filter: grayscale(0.8); pointer-events: none; }
         .action-notification { background: #fff; padding: 12px 18px; border-radius: 20px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 12px rgba(255,235,59,0.15); }
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .quick-reply-btn:active { transform: scale(0.96); opacity: 0.7; }
       `}</style>
     </div>
   );
