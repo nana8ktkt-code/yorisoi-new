@@ -33,7 +33,8 @@ export default function YorisoiApp() {
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultOptions = {
-    doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いてきた", "声がでません"],
+    // 状態に「お風呂入れない」を追加しました
+    doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いてきた", "声がでません", "お風呂入れない"],
     requests: [
       { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
       { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ１０００出してきてほしいな"] },
@@ -86,7 +87,6 @@ export default function YorisoiApp() {
     setDoc(doc(db, "configs", pairCode), newData);
   };
 
-  // 設定画面：自由記述を保存できるように修正
   const addCustomOption = (type) => {
     const newItem = window.prompt("追加したい項目を入力してください");
     if (newItem && newItem.trim() !== "") {
@@ -95,7 +95,6 @@ export default function YorisoiApp() {
       if (!newData[activeSettingSymptom]) newData[activeSettingSymptom] = {};
       if (!newData[activeSettingSymptom][settingLevel]) newData[activeSettingSymptom][settingLevel] = { doing: [], requests: [], notToDo: [] };
       
-      // まだリストにない場合のみ追加して、自動的にチェック（選択）状態にする
       if (!newData[activeSettingSymptom][settingLevel][type].includes(trimmedItem)) {
         newData[activeSettingSymptom][settingLevel][type] = [...newData[activeSettingSymptom][settingLevel][type], trimmedItem];
         setData(newData);
@@ -231,41 +230,4 @@ export default function YorisoiApp() {
               <p style={{ fontSize: '13px', textAlign: 'center', marginBottom: '10px', color: '#82c49a' }}>✨ みまもり担当が動いてくれました！</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 {["ありがとう", "だいすき♡", "助かった"].map(m => (
-                  <button key={m} onClick={() => sendThanks(m)} style={{ padding: '10px', borderRadius: '12px', background: '#f0f7ff', border: '1px solid #9ebbd7', color: '#9ebbd7', fontSize: '12px', fontWeight: 'bold' }}>{m}</button>
-                ))}
-              </div>
-            </div>
-          )}
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>1. 症状を選ぶ</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
-            {defaultSymptoms.map(s => (
-              <button key={s} onClick={() => { const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s]; setSelectedSymptoms(next); updateStatus(next, level); }} style={{ padding: '12px 16px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#777', fontWeight: 'bold' }}>{s}</button>
-            ))}
-          </div>
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>2. しんどさは？</h2>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-            {[0,1,2,3,4,5].map(n => <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>)}
-          </div>
-          <div style={{ textAlign: 'center', color: level === 0 ? '#82c49a' : '#ff9eb5', fontWeight: 'bold', fontSize: '20px', marginBottom: '25px' }}>{levelEmojis[level]} {levelFeelings[level]}</div>
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>3. 内容をチェック・変更</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '30px' }}>
-            {[
-              { id: 'doing', label: '👟 今の状態', color: '#9ebbd7' },
-              { id: 'requests', label: '📋 お願い', color: '#ff9eb5' },
-              { id: 'notToDo', label: '⚠️ 遠慮してほしいこと', color: '#f87171' }
-            ].map(item => (
-              <div key={item.id} onClick={() => editPlanItem(item.id)} style={{ background: '#fff', padding: '15px', borderRadius: '15px', borderLeft: `6px solid ${item.color}`, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <small style={{ fontWeight: 'bold', color: item.color }}>{item.label}</small>
-                  <div style={{ fontSize: '14px', marginTop: '3px' }}>{status?.[item.id]?.join('、') || "未入力（タップで入力）"}</div>
-                </div>
-                <Edit3 size={16} color="#ccc" />
-              </div>
-            ))}
-          </div>
-          <button onClick={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(`【YORISOI🕊️】\n体調更新しました：${selectedSymptoms.join('＆')} Lv.${level}\n${levelEmojis[level]}${levelFeelings[level]}\nアプリで詳細を確認してね！`)}`)} style={{ width: '100%', padding: '20px', borderRadius: '30px', background: '#4cc764', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '16px' }}>LINEで通知する（重要）</button>
-        </>
-      )}
-    </div>
-  );
-}
+                  <button key={m} onClick
