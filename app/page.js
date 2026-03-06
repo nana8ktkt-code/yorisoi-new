@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -19,6 +19,14 @@ const db = getFirestore(app);
 const levelFeelings = ["落ち着いたよ", "違和感あり", "ちょっとしんどい", "しんどい", "かなりつらい", "限界・・"];
 const levelEmojis = ["🍃", "😅", "😿", "😭", "🥶", "🚫"];
 const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
+
+// パートナーへのヒント文言
+const getHint = (lv) => {
+  if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
+  if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
+  if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
+  return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
+};
 
 export default function YorisoiApp() {
   const [pairCode, setPairCode] = useState("");
@@ -37,7 +45,7 @@ export default function YorisoiApp() {
     doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いてきた", "声がでません", "お風呂入れない"],
     requests: [
       { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
-      { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ１０００出してきてほしいな"] },
+      { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ１００0出してきてほしいな"] },
       { cat: "🌡️ ケア", items: ["腰をさすって", "部屋あたたかくして", "部屋を暗くして"] }
     ],
     notToDo: ["話しかけないで", "大きな音NG", "匂いNG", "そっとしておいて"]
@@ -54,17 +62,9 @@ export default function YorisoiApp() {
     if (!pairCode) return;
     const plan = customPlan || getPlan(newSymptoms, newLevel);
     await setDoc(doc(db, "pairs", pairCode), {
-      symptoms: newSymptoms,
-      level: newLevel,
-      feeling: levelFeelings[newLevel],
-      emoji: levelEmojis[newLevel],
-      updatedAt: new Date().getTime(),
-      doing: plan.doing,
-      requests: plan.requests,
-      notToDo: plan.notToDo,
-      completedTasks: status?.completedTasks || [],
-      lastAction: "",
-      lastActionId: "" 
+      symptoms: newSymptoms, level: newLevel, feeling: levelFeelings[newLevel], emoji: levelEmojis[newLevel],
+      updatedAt: new Date().getTime(), doing: plan.doing, requests: plan.requests, notToDo: plan.notToDo,
+      completedTasks: status?.completedTasks || [], lastAction: "", lastActionId: "" 
     }, { merge: true });
   };
 
@@ -180,11 +180,20 @@ export default function YorisoiApp() {
         <header style={{ textAlign: 'center', marginBottom: '20px' }}><h2>🤝 みまもり画面</h2></header>
         {status && (status.symptoms?.length > 0 || status.level !== undefined) ? (
           <div>
-            <div style={{ background: '#fff', borderRadius: '30px', padding: '25px', textAlign: 'center', boxShadow: '0 8px 20px rgba(158,187,215,0.2)', marginBottom: '20px' }}>
+            <div style={{ background: '#fff', borderRadius: '30px', padding: '25px', textAlign: 'center', boxShadow: '0 8px 20px rgba(158,187,215,0.2)', marginBottom: '15px' }}>
               <div style={{ fontSize: '16px', color: '#9ebbd7', fontWeight: 'bold' }}>{status.symptoms?.join('＆') || "経過観察"}</div>
               <div style={{ fontSize: '50px', fontWeight: 'bold', margin: '5px 0' }}>Lv.{status.level}</div>
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: status.level === 0 ? '#82c49a' : '#ff9eb5' }}>{status.emoji} {status.feeling}</div>
               {status.thanks && <div style={{ marginTop: '15px', padding: '10px', background: '#fff0f5', borderRadius: '15px', color: '#ff7a99', fontSize: '14px' }}>💖 {status.thanks}</div>}
+            </div>
+
+            {/* パートナーへのヒント表示 */}
+            <div style={{ background: '#fffbe6', padding: '12px 15px', borderRadius: '15px', marginBottom: '20px', display: 'flex', gap: '10px', border: '1px solid #ffe58f' }}>
+              <Lightbulb size={20} color="#faad14" style={{ flexShrink: 0 }} />
+              <div style={{ fontSize: '12px', color: '#856404', lineHeight: '1.5' }}>
+                <strong>接し方のヒント：</strong><br />
+                {getHint(status.level)}
+              </div>
             </div>
             
             <div style={{ position: 'relative', marginBottom: '25px' }}>
@@ -197,14 +206,8 @@ export default function YorisoiApp() {
                 ].map(item => {
                   const isSent = status?.lastAction?.includes(item.m);
                   return (
-                    <button 
-                      key={item.m} 
-                      onClick={() => sendQuickReply(item.m)} 
-                      className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`}
-                      style={{ background: isSent ? '#eee' : item.c, color: isSent ? '#888' : item.t, border: `1px solid ${isSent ? '#ccc' : item.c}` }}
-                    >
-                      {isSent ? <Check size={14} style={{ marginRight: '4px' }} /> : null}
-                      {item.m}
+                    <button key={item.m} onClick={() => sendQuickReply(item.m)} className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`} style={{ background: isSent ? '#eee' : item.c, color: isSent ? '#888' : item.t, border: `1px solid ${isSent ? '#ccc' : item.c}` }}>
+                      {isSent ? <Check size={14} style={{ marginRight: '4px' }} /> : null}{item.m}
                     </button>
                   );
                 })}
@@ -337,7 +340,7 @@ export default function YorisoiApp() {
         .plan-card { background: #fff; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; text-align: left; }
         .line-btn { width: 100%; padding: 20px; border-radius: 30px; background: #4cc764; color: #fff; font-weight: bold; font-size: 16px; }
         .thanks-btn { padding: 10px; border-radius: 12px; background: #f0f7ff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 12px; font-weight: bold; }
-        .is-sent { background: #e0e0e0 !important; color: #888 !important; border: 1px solid #ccc !important; opacity: 0.6; }
+        .is-sent { opacity: 0.6; filter: grayscale(0.5); }
         .sent-toast { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: #5a7d9a; color: #fff; padding: 4px 12px; border-radius: 10px; font-size: 12px; animation: floatUp 1.5s ease-out forwards; z-index: 10; }
         @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0); } 20% { opacity: 1; transform: translate(-50%, -10px); } 80% { opacity: 1; transform: translate(-50%, -10px); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .action-notification { background: #fff; padding: 15px; border-radius: 20px; margin-bottom: 20px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
