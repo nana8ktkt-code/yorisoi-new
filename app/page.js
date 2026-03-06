@@ -30,7 +30,7 @@ export default function YorisoiApp() {
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
-  const [sentMsg, setSentMsg] = useState(null); // 送信完了ポップアップ用
+  const [sentMsg, setSentMsg] = useState(null);
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultOptions = {
@@ -83,13 +83,10 @@ export default function YorisoiApp() {
     const current = status?.completedTasks || [];
     const isNowCompleted = !current.includes(task);
     const next = isNowCompleted ? [...current, task] : current.filter(t => t !== task);
-    
-    // パートナー側の手応え演出
     if (isNowCompleted) {
       setSentMsg(`「${task}」完了！`);
       setTimeout(() => setSentMsg(null), 1500);
     }
-
     await setDoc(doc(db, "pairs", pairCode), { 
       completedTasks: next,
       lastAction: isNowCompleted ? `✨ 「${task}」をやってくれたよ！` : "",
@@ -100,7 +97,6 @@ export default function YorisoiApp() {
   const sendQuickReply = async (msg) => {
     setSentMsg("送信したよ🕊️");
     setTimeout(() => setSentMsg(null), 1500);
-
     await setDoc(doc(db, "pairs", pairCode), { 
       lastAction: `💬 パートナー：${msg}`,
       lastActionId: Date.now().toString(),
@@ -191,14 +187,13 @@ export default function YorisoiApp() {
               {status.thanks && <div style={{ marginTop: '15px', padding: '10px', background: '#fff0f5', borderRadius: '15px', color: '#ff7a99', fontSize: '14px' }}>💖 {status.thanks}</div>}
             </div>
             
-            {/* クイック返信エリア */}
             <div style={{ position: 'relative', marginBottom: '25px' }}>
               {sentMsg && <div className="sent-toast">{sentMsg}</div>}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                {["了解！", "あとでやるね", "向かってるよ"].map(m => {
+                {["任せて！", "あとでやるね", "向かってるよ"].map(m => {
                   const isSent = status?.lastAction?.includes(m);
                   return (
-                    <button key={m} onClick={() => sendQuickReply(m)} className={`push-btn ${isSent ? 'is-sent' : ''}`}>
+                    <button key={m} onClick={() => sendQuickReply(m)} className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`}>
                       {isSent ? <Check size={14} style={{ marginRight: '4px' }} /> : null}
                       {m}
                     </button>
@@ -263,9 +258,7 @@ export default function YorisoiApp() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {(key === 'requests' ? defaultOptions.requests.flatMap(g => g.items) : defaultOptions[key]).concat(data[activeSettingSymptom]?.[settingLevel]?.[key] || []).filter((v,i,a)=>a.indexOf(v)===i).map(item => (
-                    <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} className={`push-btn ${data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? 'active-chip' : 'chip'}`}>
-                      {item}
-                    </button>
+                    <button key={item} onClick={() => toggleSelection(activeSettingSymptom, settingLevel, key, item)} className={`push-btn chip ${data[activeSettingSymptom]?.[settingLevel]?.[key]?.includes(item) ? 'active' : ''}`}>{item}</button>
                   ))}
                 </div>
               </div>
@@ -282,7 +275,6 @@ export default function YorisoiApp() {
             </div>
           </header>
 
-          {/* 通知アニメーション */}
           {status?.lastAction && (
             <div key={status.lastActionId} className="action-notification">
               <Sparkles size={20} />
@@ -305,7 +297,7 @@ export default function YorisoiApp() {
           <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>1. 症状を選ぶ</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
             {defaultSymptoms.map(s => (
-              <button key={s} onClick={() => { const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s]; setSelectedSymptoms(next); updateStatus(next, level); }} className={`push-btn symptom-btn ${selectedSymptoms.includes(s) ? 'active' : ''}`}>{s}</button>
+              <button key={s} onClick={() => { const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s]; setSelectedSymptoms(next); updateStatus(next, level); }} className={`push-btn chip ${selectedSymptoms.includes(s) ? 'active' : ''}`}>{s}</button>
             ))}
           </div>
           <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>2. しんどさは？</h2>
@@ -328,15 +320,14 @@ export default function YorisoiApp() {
       <style jsx>{`
         .push-btn { transition: all 0.1s active; border: none; cursor: pointer; }
         .push-btn:active { transform: scale(0.95); opacity: 0.8; }
-        .lv-btn { width: 45px; height: 45px; borderRadius: 50%; background: #fff; color: #9ebbd7; font-weight: bold; }
+        .lv-btn { width: 45px; height: 45px; border-radius: 50% !important; background: #fff; color: #9ebbd7; font-weight: bold; }
         .lv-btn.active { background: #9ebbd7; color: #fff; }
-        .symptom-btn { padding: 12px 16px; border-radius: 15px; background: #fff; color: #777; font-weight: bold; }
-        .symptom-btn.active { background: #9ebbd7; color: #fff; }
+        .quick-reply-btn { padding: 12px 5px; border-radius: 12px !important; background: #fff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 12px; }
+        .chip { padding: 12px 16px; border-radius: 15px; background: #fff; color: #777; font-weight: bold; }
+        .chip.active { background: #9ebbd7; color: #fff; }
         .plan-card { background: #fff; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; text-align: left; }
         .line-btn { width: 100%; padding: 20px; border-radius: 30px; background: #4cc764; color: #fff; font-weight: bold; font-size: 16px; }
         .thanks-btn { padding: 10px; border-radius: 12px; background: #f0f7ff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 12px; font-weight: bold; }
-        .chip { padding: 8px 12px; border-radius: 15px; font-size: 12px; background: #fff; color: #777; border: 1px solid #eee; }
-        .active-chip { padding: 8px 12px; border-radius: 15px; font-size: 12px; background: #9ebbd7; color: #fff; border: 1px solid #9ebbd7; }
         .is-sent { background: #e0e0e0 !important; color: #888 !important; border: 1px solid #ccc !important; }
         .sent-toast { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: #5a7d9a; color: #fff; padding: 4px 12px; border-radius: 10px; font-size: 12px; animation: floatUp 1.5s ease-out forwards; z-index: 10; }
         @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0); } 20% { opacity: 1; transform: translate(-50%, -10px); } 80% { opacity: 1; transform: translate(-50%, -10px); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
