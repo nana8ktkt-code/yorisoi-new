@@ -190,12 +190,21 @@ export default function YorisoiApp() {
             <div style={{ position: 'relative', marginBottom: '25px' }}>
               {sentMsg && <div className="sent-toast">{sentMsg}</div>}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                {["任せて！", "あとでやるね", "向かってるよ"].map(m => {
-                  const isSent = status?.lastAction?.includes(m);
+                {[
+                  { m: "任せて！", c: "#e3f2fd", t: "#42a5f5" },
+                  { m: "あとでやるね", c: "#fff9c4", t: "#fbc02d" },
+                  { m: "向かってるよ", c: "#e8f5e9", t: "#66bb6a" }
+                ].map(item => {
+                  const isSent = status?.lastAction?.includes(item.m);
                   return (
-                    <button key={m} onClick={() => sendQuickReply(m)} className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`}>
+                    <button 
+                      key={item.m} 
+                      onClick={() => sendQuickReply(item.m)} 
+                      className={`push-btn quick-reply-btn ${isSent ? 'is-sent' : ''}`}
+                      style={{ background: isSent ? '#eee' : item.c, color: isSent ? '#888' : item.t, border: `1px solid ${isSent ? '#ccc' : item.c}` }}
+                    >
                       {isSent ? <Check size={14} style={{ marginRight: '4px' }} /> : null}
-                      {m}
+                      {item.m}
                     </button>
                   );
                 })}
@@ -322,13 +331,13 @@ export default function YorisoiApp() {
         .push-btn:active { transform: scale(0.95); opacity: 0.8; }
         .lv-btn { width: 45px; height: 45px; border-radius: 50% !important; background: #fff; color: #9ebbd7; font-weight: bold; }
         .lv-btn.active { background: #9ebbd7; color: #fff; }
-        .quick-reply-btn { padding: 12px 5px; border-radius: 12px !important; background: #fff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 12px; }
+        .quick-reply-btn { padding: 12px 5px; border-radius: 15px !important; font-size: 12px; font-weight: bold; }
         .chip { padding: 12px 16px; border-radius: 15px; background: #fff; color: #777; font-weight: bold; }
         .chip.active { background: #9ebbd7; color: #fff; }
         .plan-card { background: #fff; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; text-align: left; }
         .line-btn { width: 100%; padding: 20px; border-radius: 30px; background: #4cc764; color: #fff; font-weight: bold; font-size: 16px; }
         .thanks-btn { padding: 10px; border-radius: 12px; background: #f0f7ff; border: 1px solid #9ebbd7; color: #9ebbd7; font-size: 12px; font-weight: bold; }
-        .is-sent { background: #e0e0e0 !important; color: #888 !important; border: 1px solid #ccc !important; }
+        .is-sent { background: #e0e0e0 !important; color: #888 !important; border: 1px solid #ccc !important; opacity: 0.6; }
         .sent-toast { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: #5a7d9a; color: #fff; padding: 4px 12px; border-radius: 10px; font-size: 12px; animation: floatUp 1.5s ease-out forwards; z-index: 10; }
         @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0); } 20% { opacity: 1; transform: translate(-50%, -10px); } 80% { opacity: 1; transform: translate(-50%, -10px); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .action-notification { background: #fff; padding: 15px; border-radius: 20px; margin-bottom: 20px; border: 2px solid #ffeb3b; color: #d4af37; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
