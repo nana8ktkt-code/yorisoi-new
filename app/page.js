@@ -1,77 +1,236 @@
-      {isSetting ? (
-        /* --- 設定画面 --- */
-        <div style={{ background: '#fff', padding: '25px', borderRadius: '30px', minHeight: '80vh', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
-          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: '#f0f7ff', borderRadius: '15px', color: '#9ebbd7', marginBottom: '20px', fontWeight: 'bold' }}>◀ 戻る</button>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px', color: '#5a7d9a' }}>症状を選択</label>
-            <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '15px', border: '1px solid #f0f7ff', background: '#fcfdff', marginTop: '5px' }}>
-              {defaultSymptoms.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
+"use client";
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb, Heart, Copy, Share, LogOut, Save } from 'lucide-react';
 
-          <div style={{ marginBottom: '25px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px', color: '#5a7d9a' }}>しんどさ Lv.{settingLevel}</label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', background: '#f8fbff', padding: '10px', borderRadius: '25px' }}>
-              {[0, 1, 2, 3, 4, 5].map(n => (
-                <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : 'transparent', color: settingLevel === n ? '#fff' : '#ccc', fontWeight: 'bold' }}>{n}</button>
-              ))}
-            </div>
-          </div>
+const firebaseConfig = {
+  apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
+  authDomain: "yorisoi-app-89ce7.firebaseapp.com",
+  projectId: "yorisoi-app-89ce7",
+  storageBucket: "yorisoi-app-89ce7.firebasestorage.app",
+  messagingSenderId: "509189105205",
+  appId: "1:509189105205:web:7ffc405665e85fed92f37c"
+};
 
-          {['doing', 'requests', 'notToDo'].map(type => {
-            // そのレベルで表示する選択肢のベース（前あった選択肢）
-            const baseOptions = type === 'doing' ? defaultOptions.doing : (type === 'requests' ? defaultOptions.requests.flatMap(c => c.items) : defaultOptions.notToDo);
-            // ユーザーが自分で追加して保存したもの
-            const customSaved = data[activeSettingSymptom]?.[settingLevel]?.[type] || [];
-            
-            return (
-              <div key={type} style={{ marginBottom: '25px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '14px', color: '#5a7d9a', marginBottom: '10px' }}>
-                  {type === 'doing' ? '😷 今の状態' : type === 'requests' ? '☺️ お願い' : '🥺 遠慮してほしいこと'}
-                </p>
-                
-                {/* 自由記述入力 */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  <input 
-                    value={customInput[type]} 
-                    onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} 
-                    placeholder="自由に入力して保存" 
-                    style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #eee', fontSize: '13px' }} 
-                  />
-                  <button onClick={() => saveCustomText(type)} style={{ padding: '10px 15px', background: '#9ebbd7', color: '#fff', borderRadius: '12px', border: 'none' }} className="push-btn">
-                    <Save size={18}/>
-                  </button>
-                </div>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-                {/* 選択肢（ベース + カスタム） */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {[...new Set([...baseOptions, ...customSaved])].map(item => {
-                    const isActive = customSaved.includes(item);
-                    return (
-                      <button 
-                        key={item} 
-                        onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} 
-                        className="push-btn" 
-                        style={{ 
-                          padding: '8px 14px', 
-                          borderRadius: '15px', 
-                          border: 'none', 
-                          background: isActive ? '#9ebbd7' : '#f5f5f5', 
-                          color: isActive ? '#fff' : '#888', 
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        {item} {isActive ? <Check size={12}/> : <Plus size={12}/>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+const levelFeelings = ["落ち着いたよ", "違和感あり", "ちょっとしんどい", "しんどい", "かなりつらい", "限界"];
+const levelEmojis = ["🍃", "😅", "😷", "😭", "🥶", "🤮"];
+const moodOptions = [
+  { emoji: "🙂", label: "落ち着いてる" },
+  { emoji: "😢", label: "寂しい" },
+  { emoji: "😡", label: "イライラ" },
+  { emoji: "😴", label: "眠い" },
+  { emoji: "🤢", label: "気持ち悪い" }
+];
+
+const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
+
+const getHint = (lv) => {
+  if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
+  if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
+  if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
+  return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
+};
+
+const getDynamicBg = (lv, mode) => {
+  if (mode === "🌿") return "#f2f2f2"; 
+  if (mode === "🐶") return "#fff3e0"; 
+  const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
+  return colors[lv] || "#f0f7ff";
+};
+
+export default function YorisoiApp() {
+  const [showIntro, setShowIntro] = useState(true);
+  const [pairCode, setPairCode] = useState("");
+  const [inputCode, setInputCode] = useState("");
+  const [role, setRole] = useState(null);
+  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [level, setLevel] = useState(0);
+  const [data, setData] = useState({});
+  const [status, setStatus] = useState(null);
+  const [isSetting, setIsSetting] = useState(false);
+  const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
+  const [settingLevel, setSettingLevel] = useState(0);
+  const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
+
+  const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
+　const defaultPlan = {
+  doing: [
+    "横になって休んでる",
+    "薬飲んでる",
+    "食欲がない",
+    "少し落ち着いてきた",
+    "声がでません",
+    "お風呂入れない"
+  ],
+
+  requests: [
+    { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
+    { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ1000出してきてほしいな"] },
+    { cat: "🌡️ ケア", items: ["腰をさすって", "部屋あたたかくして", "部屋を暗くして"] }
+  ],
+
+  notToDo: [
+    "話しかけないで",
+    "大きな音NG",
+    "匂いNG",
+    "そっとしておいて"
+  ]
+};
+  // 1. ログイン状態の保持
+  useEffect(() => {
+    const savedCode = localStorage.getItem('yorisoi_pairCode');
+    const savedRole = localStorage.getItem('yorisoi_role');
+    if (savedCode && savedRole) {
+      setPairCode(savedCode);
+      setRole(savedRole);
+      setShowIntro(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pairCode) return;
+    const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => { if (s.exists()) setStatus(s.data()); });
+    const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { if (s.exists()) setData(s.data()); });
+    return () => { unsubStatus(); unsubConfig(); };
+  }, [pairCode]);
+
+  const saveLogin = (code, r) => {
+    localStorage.setItem('yorisoi_pairCode', code);
+    localStorage.setItem('yorisoi_role', r);
+    setPairCode(code);
+    setRole(r);
+  };
+
+  const logout = () => {
+    if(confirm("ログアウトしますか？")) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
+  const startAsReporter = async () => {
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  saveLogin(code, 'her');
+
+  const initData = {};
+
+  defaultSymptoms.forEach(symptom => {
+    initData[symptom] = {};
+    for (let i = 0; i <= 5; i++) {
+      initData[symptom][i] = {
+        doing: [...defaultPlan.doing],
+        requests: defaultPlan.requests.flatMap(r => r.items),
+        notToDo: [...defaultPlan.notToDo]
+      };
+    }
+  });
+
+  await setDoc(doc(db, "configs", code), initData);
+};= () => {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    saveLogin(code, 'her');
+  };
+
+  const startAsSupporter = () => {
+    if (inputCode.length >= 4) saveLogin(inputCode.toUpperCase(), 'him');
+  };
+
+  const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
+    if (!pairCode) return;
+    const plan = getPlan(newSyms, newLv);
+    await setDoc(doc(db, "pairs", pairCode), {
+      symptoms: newSyms, level: newLv, feeling: levelFeelings[newLv], emoji: levelEmojis[newLv],
+      mood: mood !== null ? (status?.mood === mood ? "" : mood) : (status?.mood || ""),
+      mode: mode !== null ? (status?.mode === mode ? "" : mode) : (status?.mode || ""),
+      updatedAt: new Date().getTime(), doing: plan.doing, requests: plan.requests, notToDo: plan.notToDo,
+      completedTasks: status?.completedTasks || []
+    }, { merge: true });
+  };
+
+  const getPlan = (syms, lv) => {
+    const combined = { doing: [], requests: [], notToDo: [] };
+    syms.forEach(s => {
+      const p = data[s]?.[lv] || { doing: [], requests: [], notToDo: [] };
+      combined.doing = [...new Set([...combined.doing, ...(p.doing || [])])];
+      combined.requests = [...new Set([...combined.requests, ...(p.requests || [])])];
+      combined.notToDo = [...new Set([...combined.notToDo, ...(p.notToDo || [])])];
+    });
+    return combined;
+  };
+
+  const saveCustomText = async (type) => {
+    const text = customInput[type];
+    if (!text.trim() || !pairCode) return;
+    const newData = { ...data };
+    if (!newData[activeSettingSymptom]) newData[activeSettingSymptom] = {};
+    if (!newData[activeSettingSymptom][settingLevel]) newData[activeSettingSymptom][settingLevel] = { doing: [], requests: [], notToDo: [] };
+    if (!newData[activeSettingSymptom][settingLevel][type].includes(text)) {
+      newData[activeSettingSymptom][settingLevel][type] = [...newData[activeSettingSymptom][settingLevel][type], text];
+      setData(newData);
+      await setDoc(doc(db, "configs", pairCode), newData);
+      setCustomInput({ ...customInput, [type]: "" });
+    }
+  };
+
+  const toggleConfigItem = async (symptom, lv, type, item) => {
+    const newData = { ...data };
+    const list = newData[symptom]?.[lv]?.[type] || [];
+    newData[symptom][lv][type] = list.filter(i => i !== item);
+    setData(newData);
+    await setDoc(doc(db, "configs", pairCode), newData);
+  };
+
+  const currentBg = getDynamicBg(status?.level || 0, status?.mode);
+
+  if (showIntro && !pairCode) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh' }}>
+        <Heart size={64} color="#9ebbd7" style={{ marginTop: '60px' }} />
+        <h1 style={{ color: '#9ebbd7', fontSize: '32px', margin: '20px 0 40px' }}>YORISOI</h1>
+        <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', marginBottom: '40px' }}>おつたえ側 🕊️</button>
+        <div style={{ padding: '20px', background: '#fff', borderRadius: '25px' }}>
+          <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: 'none', fontSize: '20px' }} />
+          <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#eee', marginTop: '10px' }}>みまもり側として参加 🤝</button>
         </div>
-      ) : (
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', transition: '0.5s' }}>
+      {isSetting ? (
+        /* 設定画面 */
+        <div style={{ background: '#fff', padding: '25px', borderRadius: '30px', minHeight: '80vh' }}>
+          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: '#f0f7ff', borderRadius: '15px', color: '#9ebbd7', marginBottom: '20px' }}>◀ 戻る</button>
+          <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
+            {defaultSymptoms.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+            {[0, 1, 2, 3, 4, 5].map(n => (
+              <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
+            ))}
+          </div>
+          {['doing', 'requests', 'notToDo'].map(type => (
+            <div key={type} style={{ marginBottom: '20px' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '13px' }}>
+{type === 'doing'
+  ? 'やっていること💪'
+  : type === 'requests'
+  ? 'やってくれたら嬉しい☺️'
+  : '遠慮してほしいな🥺'}
+</p>
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+                <input value={customInput[type]} onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} placeholder="追加する..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee' }} />
+                <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px' }}><Save size={18}/></button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
+                  <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer' }}>{item} ✕</span>
+                ))}
+              </div>
+            </div>
+         
