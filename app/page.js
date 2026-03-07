@@ -207,3 +207,4 @@ export default function YorisoiApp() {
       <div style={{ ...pageStyle, textAlign: 'center', padding: '80px 20px', background: '#f0f7ff' }}>
         <h1 style={{ color: '#9ebbd7', fontSize: '36px', letterSpacing: '2px' }}>🕊️ YORISOI</h1>
         <p style={{ fontSize: '14px', marginBottom: '60px' }}>ふたりのための、寄り添う空間</p
+        
