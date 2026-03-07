@@ -174,114 +174,35 @@ export default function YorisoiApp() {
               <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
-{['doing', 'requests', 'notToDo'].map(type => (
-  <div key={type} style={{ marginBottom: '20px' }}>
-    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
-      {type === 'doing' ? 'やっていること💪' : type === 'requests' ? 'やってくれたら嬉しい☺️' : '遠慮してほしいな🥺'}
-    </p>
-    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-      <input 
-        value={customInput[type]} 
-        onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} 
-        placeholder="項目を追加して保存..." 
-        style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} 
-      />
-      <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px' }}>
-        <Save size={18}/>
-      </button>
-    </div>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-      {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
-        <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer', border: '1px solid #eee' }}>
-          {item} <span style={{color: '#ccc', marginLeft: '4px'}}>✕</span>
-        </span>
-      ))}
-    </div>
-  </div>
-))}
-      ) : (
-        /* メイン画面 */
-        <>
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <span style={{ fontWeight: 'bold', color: '#9ebbd7' }}>ID: {pairCode}</span>
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <Settings onClick={() => setIsSetting(true)} color="#9ebbd7" />
-              <LogOut onClick={logout} color="#f87171" size={20} />
-            </div>
-          </header>
-
-          {role === 'her' ? (
-            <div className="fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '20px' }}>
-                {moodOptions.map(m => (
-                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px' }}>
-                    <div style={{ fontSize: '18px' }}>{m.emoji}</div>{m.label}
-                  </button>
+          {['doing', 'requests', 'notToDo'].map(type => (
+            <div key={type} style={{ marginBottom: '20px' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
+                {type === 'doing' ? 'やっていること💪' : type === 'requests' ? 'やってくれたら嬉しい☺️' : '遠慮してほしいな🥺'}
+              </p>
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+                <input 
+                  value={customInput[type]} 
+                  onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} 
+                  placeholder="追加して保存..." 
+                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} 
+                />
+                <button 
+                  onClick={() => saveCustomText(type)} 
+                  style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
+                >
+                  <Save size={18}/>
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
+                  <span 
+                    key={item} 
+                    onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} 
+                    style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer', border: '1px solid #eee' }}
+                  >
+                    {item} <span style={{ color: '#ccc', marginLeft: '4px' }}>✕</span>
+                  </span>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
-                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🐶")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🐶" ? "#fff3e0" : "#fff", fontWeight: 'bold' }}>🐶 そばにいて</button>
-                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🌿")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🌿" ? "#f2f2f2" : "#fff", fontWeight: 'bold' }}>🌿 そっとして</button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
-                {defaultSymptoms.map(s => (
-                  <button key={s} onClick={() => {
-                    const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-                    setSelectedSymptoms(next); updateStatus(next, level);
-                  }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px' }}>{s}</button>
-                ))}
-              </div>
-<div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
-  {/* やっていること */}
-  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
-    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
-    {status.doing?.length > 0 ? status.doing.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
-  </div>
-
-  {/* やってくれたら嬉しい */}
-  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
-    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
-    {status.requests?.length > 0 ? status.requests.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
-  </div>
-
-  {/* 遠慮してほしい */}
-  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #a3a3a3' }}>
-    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
-    {status.notToDo?.length > 0 ? status.notToDo.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
-  </div>
-</div>
-
-            
-            /* みまもり側 */
-            <div className="fade-in">
-              {status ? (
-                <>
-                  <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
-                    <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>
-                      {status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}
-                    </p>
-                    <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
-                    <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
-                    <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level)}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
-                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>お願いされていること</p>
-                      {status.requests?.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>)}
-                    </div>
-                  </div>
-                </>
-              ) : <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>}
             </div>
-          )}
-        </>
-      )}
-      <style jsx>{`
-        .push-btn { transition: 0.2s; cursor: pointer; border: none; }
-        .push-btn:active { transform: scale(0.95); }
-        .fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-    </div>
-  );
-}
+          ))}
