@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, CheckCircle2, Circle, Edit3, Plus, Sparkles, Trash2, Check, Lightbulb, Heart, Copy, Share, LogOut, Save } from 'lucide-react';
+import { Settings, Heart, LogOut, Save } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -57,30 +57,7 @@ export default function YorisoiApp() {
   const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
-　const defaultPlan = {
-  doing: [
-    "横になって休んでる",
-    "薬飲んでる",
-    "食欲がない",
-    "少し落ち着いてきた",
-    "声がでません",
-    "お風呂入れない"
-  ],
 
-  requests: [
-    { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
-    { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ1000出してきてほしいな"] },
-    { cat: "🌡️ ケア", items: ["腰をさすって", "部屋あたたかくして", "部屋を暗くして"] }
-  ],
-
-  notToDo: [
-    "話しかけないで",
-    "大きな音NG",
-    "匂いNG",
-    "そっとしておいて"
-  ]
-};
-  // 1. ログイン状態の保持
   useEffect(() => {
     const savedCode = localStorage.getItem('yorisoi_pairCode');
     const savedRole = localStorage.getItem('yorisoi_role');
@@ -112,25 +89,7 @@ export default function YorisoiApp() {
     }
   };
 
-  const startAsReporter = async () => {
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  saveLogin(code, 'her');
-
-  const initData = {};
-
-  defaultSymptoms.forEach(symptom => {
-    initData[symptom] = {};
-    for (let i = 0; i <= 5; i++) {
-      initData[symptom][i] = {
-        doing: [...defaultPlan.doing],
-        requests: defaultPlan.requests.flatMap(r => r.items),
-        notToDo: [...defaultPlan.notToDo]
-      };
-    }
-  });
-
-  await setDoc(doc(db, "configs", code), initData);
-};= () => {
+  const startAsReporter = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     saveLogin(code, 'her');
   };
@@ -191,10 +150,10 @@ export default function YorisoiApp() {
       <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh' }}>
         <Heart size={64} color="#9ebbd7" style={{ marginTop: '60px' }} />
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', margin: '20px 0 40px' }}>YORISOI</h1>
-        <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', marginBottom: '40px' }}>おつたえ側 🕊️</button>
+        <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', marginBottom: '40px', border: 'none', cursor: 'pointer' }}>おつたえ側 🕊️</button>
         <div style={{ padding: '20px', background: '#fff', borderRadius: '25px' }}>
           <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: 'none', fontSize: '20px' }} />
-          <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#eee', marginTop: '10px' }}>みまもり側として参加 🤝</button>
+          <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#eee', marginTop: '10px', border: 'none', cursor: 'pointer' }}>みまもり側として参加 🤝</button>
         </div>
       </div>
     );
@@ -203,9 +162,8 @@ export default function YorisoiApp() {
   return (
     <div style={{ padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', transition: '0.5s' }}>
       {isSetting ? (
-        /* 設定画面 */
         <div style={{ background: '#fff', padding: '25px', borderRadius: '30px', minHeight: '80vh' }}>
-          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: '#f0f7ff', borderRadius: '15px', color: '#9ebbd7', marginBottom: '20px' }}>◀ 戻る</button>
+          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: '#f0f7ff', borderRadius: '15px', color: '#9ebbd7', marginBottom: '20px', border: 'none' }}>◀ 戻る</button>
           <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
             {defaultSymptoms.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -216,21 +174,105 @@ export default function YorisoiApp() {
           </div>
           {['doing', 'requests', 'notToDo'].map(type => (
             <div key={type} style={{ marginBottom: '20px' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '13px' }}>
-{type === 'doing'
-  ? 'やっていること💪'
-  : type === 'requests'
-  ? 'やってくれたら嬉しい☺️'
-  : '遠慮してほしいな🥺'}
-</p>
+              <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
+                {type === 'doing' ? 'やっていること💪' : type === 'requests' ? 'やってくれたら嬉しい☺️' : '遠慮してほしいな🥺'}
+              </p>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                <input value={customInput[type]} onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} placeholder="追加する..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee' }} />
-                <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px' }}><Save size={18}/></button>
+                <input value={customInput[type]} onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
+                <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                 {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
-                  <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer' }}>{item} ✕</span>
+                  <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer', border: '1px solid #eee' }}>
+                    {item} <span style={{color: '#ccc', marginLeft: '4px'}}>✕</span>
+                  </span>
                 ))}
               </div>
             </div>
-         
+          ))}
+        </div>
+      ) : (
+        <>
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <span style={{ fontWeight: 'bold', color: '#9ebbd7' }}>ID: {pairCode}</span>
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <Settings onClick={() => setIsSetting(true)} color="#9ebbd7" style={{cursor: 'pointer'}} />
+              <LogOut onClick={logout} color="#f87171" size={20} style={{cursor: 'pointer'}} />
+            </div>
+          </header>
+
+          {role === 'her' ? (
+            <div className="fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '20px' }}>
+                {moodOptions.map(m => (
+                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px', cursor: 'pointer' }}>
+                    <div style={{ fontSize: '18px' }}>{m.emoji}</div>{m.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🐶")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🐶" ? "#fff3e0" : "#fff", fontWeight: 'bold', cursor: 'pointer' }}>🐶 そばにいて</button>
+                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🌿")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🌿" ? "#f2f2f2" : "#fff", fontWeight: 'bold', cursor: 'pointer' }}>🌿 そっとして</button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
+                {defaultSymptoms.map(s => (
+                  <button key={s} onClick={() => {
+                    const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
+                    setSelectedSymptoms(next); updateStatus(next, level);
+                  }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                {[0, 1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold', cursor: 'pointer' }}>{n}</button>
+                ))}
+              </div>
+              <div style={{ background: '#fff', borderRadius: '25px', padding: '30px', textAlign: 'center', boxShadow: '0 5px 15px rgba(0,0,0,0.02)' }}>
+                <div style={{ fontSize: '50px' }}>{levelEmojis[level]}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{levelFeelings[level]}</div>
+              </div>
+              <div style={{ marginTop: '30px', textAlign: 'center' }}>
+                <button onClick={() => { navigator.clipboard.writeText(pairCode); alert("コピーしました！"); }} style={{ background: 'none', border: 'none', color: '#9ebbd7', fontSize: '14px', textDecoration: 'underline', cursor: 'pointer' }}>招待コードをコピー</button>
+              </div>
+            </div>
+          ) : (
+            <div className="fade-in">
+              {status ? (
+                <>
+                  <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
+                    <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>
+                      {status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}
+                    </p>
+                    <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
+                    <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level)}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
+                      {status.doing?.length > 0 ? status.doing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                    </div>
+                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
+                      {status.requests?.length > 0 ? status.requests.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                    </div>
+                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ccc' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#999', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
+                      {status.notToDo?.length > 0 ? status.notToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                    </div>
+                  </div>
+                </>
+              ) : <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>}
+            </div>
+          )}
+        </>
+      )}
+      <style jsx>{`
+        .push-btn { transition: 0.2s; cursor: pointer; }
+        .push-btn:active { transform: scale(0.95); }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+    </div>
+  );
+}
