@@ -174,21 +174,31 @@ export default function YorisoiApp() {
               <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
-          {['doing', 'requests', 'notToDo'].map(type => (
-            <div key={type} style={{ marginBottom: '20px' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '13px' }}>{type === 'doing' ? '今の状態' : type === 'requests' ? 'お願い' : 'NG事項'}</p>
-              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                <input value={customInput[type]} onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} placeholder="追加する..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee' }} />
-                <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px' }}><Save size={18}/></button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
-                  <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer' }}>{item} ✕</span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+{['doing', 'requests', 'notToDo'].map(type => (
+  <div key={type} style={{ marginBottom: '20px' }}>
+    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
+      {type === 'doing' ? 'やっていること💪' : type === 'requests' ? 'やってくれたら嬉しい☺️' : '遠慮してほしいな🥺'}
+    </p>
+    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+      <input 
+        value={customInput[type]} 
+        onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} 
+        placeholder="項目を追加して保存..." 
+        style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} 
+      />
+      <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px' }}>
+        <Save size={18}/>
+      </button>
+    </div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+      {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
+        <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer', border: '1px solid #eee' }}>
+          {item} <span style={{color: '#ccc', marginLeft: '4px'}}>✕</span>
+        </span>
+      ))}
+    </div>
+  </div>
+))}
       ) : (
         /* メイン画面 */
         <>
@@ -221,20 +231,27 @@ export default function YorisoiApp() {
                   }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px' }}>{s}</button>
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                {[0, 1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>
-                ))}
-              </div>
-              <div style={{ background: '#fff', borderRadius: '25px', padding: '30px', textAlign: 'center', boxShadow: '0 5px 15px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '50px' }}>{levelEmojis[level]}</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{levelFeelings[level]}</div>
-              </div>
-              <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                <button onClick={() => { navigator.clipboard.writeText(pairCode); alert("コピーしました！"); }} style={{ background: 'none', border: 'none', color: '#9ebbd7', fontSize: '14px', textDecoration: 'underline' }}>招待コードをコピー</button>
-              </div>
-            </div>
-          ) : (
+<div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
+  {/* やっていること */}
+  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
+    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
+    {status.doing?.length > 0 ? status.doing.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+  </div>
+
+  {/* やってくれたら嬉しい */}
+  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
+    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
+    {status.requests?.length > 0 ? status.requests.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+  </div>
+
+  {/* 遠慮してほしい */}
+  <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #a3a3a3' }}>
+    <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
+    {status.notToDo?.length > 0 ? status.notToDo.map(item => <div key={item} style={{ fontSize: '14px', marginBottom: '5px' }}>・{item}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+  </div>
+</div>
+
+            
             /* みまもり側 */
             <div className="fade-in">
               {status ? (
