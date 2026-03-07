@@ -51,6 +51,7 @@ export default function YorisoiApp() {
   const [level, setLevel] = useState(0);
   const [data, setData] = useState({});
   const [status, setStatus] = useState(null);
+  const [completedTasks, setCompletedTasks] = useState([]);
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
@@ -174,6 +175,19 @@ export default function YorisoiApp() {
   };
 
   const toggleConfigItem = async (symptom, lv, type, item) => {
+    const toggleTask = async (task) => {
+
+  const updated = completedTasks.includes(task)
+    ? completedTasks.filter(t => t !== task)
+    : [...completedTasks, task];
+
+  setCompletedTasks(updated);
+
+  await setDoc(doc(db, "pairs", pairCode), {
+    completedTasks: updated
+  }, { merge: true });
+
+};
     const newData = { ...data };
     const list = newData[symptom]?.[lv]?.[type] || [];
     newData[symptom][lv][type] = list.filter(i => i !== item);
@@ -292,8 +306,25 @@ export default function YorisoiApp() {
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
-                      {status.requests?.length > 0 ? status.requests.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
-                    </div>
+                      {status.requests?.length > 0 ? status.requests.map(r => (
+
+<div
+key={r}
+onClick={() => toggleTask(r)}
+style={{
+fontSize:'14px',
+marginBottom:'5px',
+cursor:'pointer',
+opacity: completedTasks.includes(r) ? 0.4 : 1,
+textDecoration: completedTasks.includes(r) ? "line-through" : "none"
+}}
+>
+
+{completedTasks.includes(r) ? "✅" : "⬜"} {r}
+
+</div>
+
+)) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ccc' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#999', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
                       {status.notToDo?.length > 0 ? status.notToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
