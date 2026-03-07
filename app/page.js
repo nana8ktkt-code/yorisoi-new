@@ -57,7 +57,29 @@ export default function YorisoiApp() {
   const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
+　 const defaultPlan = {
+  doing: [
+    "横になって休んでる",
+    "薬飲んでる",
+    "食欲がない",
+    "少し落ち着いてきた",
+    "声がでません",
+    "お風呂入れない"
+  ],
 
+  requests: [
+    { cat: "🧼 家事", items: ["洗い物をお願い", "洗濯物をお願い", "ゴミ出しをお願い"] },
+    { cat: "🍱 食事", items: ["お寿司たべたいな", "おかゆ食べたい", "Ｃ1000出してきてほしいな"] },
+    { cat: "🌡️ ケア", items: ["腰をさすって", "部屋あたたかくして", "部屋を暗くして"] }
+  ],
+
+  notToDo: [
+    "話しかけないで",
+    "大きな音NG",
+    "匂いNG",
+    "そっとしておいて"
+  ]
+};
   useEffect(() => {
     const savedCode = localStorage.getItem('yorisoi_pairCode');
     const savedRole = localStorage.getItem('yorisoi_role');
@@ -89,10 +111,26 @@ export default function YorisoiApp() {
     }
   };
 
-  const startAsReporter = () => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    saveLogin(code, 'her');
-  };
+  const startAsReporter = async () => {
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  saveLogin(code, 'her');
+
+  const initData = {};
+
+  defaultSymptoms.forEach(symptom => {
+    initData[symptom] = {};
+
+    for (let lv = 0; lv <= 5; lv++) {
+      initData[symptom][lv] = {
+        doing: [...defaultPlan.doing],
+        requests: defaultPlan.requests.flatMap(r => r.items),
+        notToDo: [...defaultPlan.notToDo]
+      };
+    }
+  });
+
+  await setDoc(doc(db, "configs", code), initData);
+};
 
   const startAsSupporter = () => {
     if (inputCode.length >= 4) saveLogin(inputCode.toUpperCase(), 'him');
