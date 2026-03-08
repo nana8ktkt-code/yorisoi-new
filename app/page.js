@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Heart, LogOut, Save } from 'lucide-react';
+import { Settings, Heart, LogOut, Save, CheckCircle2 } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -85,6 +85,8 @@ export default function YorisoiApp() {
         const newData = s.data();
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
+        if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
+        if(newData.level !== undefined) setLevel(newData.level);
       }
     });
     const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { 
@@ -129,7 +131,10 @@ export default function YorisoiApp() {
         feeling: "落ち着いたよ", 
         emoji: "🍃",
         completedTasks: [],
-        thanksMessage: ""
+        thanksMessage: "",
+        activeDoing: [],
+        activeRequests: [],
+        activeNotToDo: []
       });
       saveLogin(code, 'her');
     } catch (e) {
@@ -168,7 +173,6 @@ export default function YorisoiApp() {
 
   const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
     if (!pairCode) return;
-    const plan = getPlan(newSyms, newLv);
     await setDoc(doc(db, "pairs", pairCode), {
       symptoms: newSyms, 
       level: newLv, 
@@ -177,22 +181,8 @@ export default function YorisoiApp() {
       mood: mood !== null ? (status?.mood === mood ? "" : mood) : (status?.mood || ""),
       mode: mode !== null ? (status?.mode === mode ? "" : mode) : (status?.mode || ""),
       updatedAt: new Date().getTime(), 
-      doing: plan.doing, 
-      requests: plan.requests, 
-      notToDo: plan.notToDo,
       completedTasks: completedTasks
     }, { merge: true });
-  };
-
-  const getPlan = (syms, lv) => {
-    const combined = { doing: [], requests: [], notToDo: [] };
-    syms.forEach(s => {
-      const p = data[s]?.[lv] || { doing: [], requests: [], notToDo: [] };
-      combined.doing = [...new Set([...combined.doing, ...(p.doing || [])])];
-      combined.requests = [...new Set([...combined.requests, ...(p.requests || [])])];
-      combined.notToDo = [...new Set([...combined.notToDo, ...(p.notToDo || [])])];
-    });
-    return combined;
   };
 
   const saveCustomText = async (type) => {
@@ -209,12 +199,11 @@ export default function YorisoiApp() {
     }
   };
 
-  const toggleConfigItem = async (symptom, lv, type, item) => {
-    const newData = { ...data };
-    const list = newData[symptom]?.[lv]?.[type] || [];
-    newData[symptom][lv][type] = list.filter(i => i !== item);
-    setData(newData);
-    await setDoc(doc(db, "configs", pairCode), newData);
+  const toggleConfigItemSelection = async (type, item) => {
+    if (!pairCode) return;
+    const current = status?.[type] || [];
+    const next = current.includes(item) ? current.filter(i => i !== item) : [...current, item];
+    await setDoc(doc(db, "pairs", pairCode), { [type]: next }, { merge: true });
   };
 
   const toggleTask = async (task) => {
@@ -222,14 +211,20 @@ export default function YorisoiApp() {
     const updated = isCompleting
       ? [...completedTasks, task]
       : completedTasks.filter(t => t !== task);
-
     setCompletedTasks(updated);
-
     await setDoc(doc(db, "pairs", pairCode), {
       completedTasks: updated,
-      // メッセージ送信時に使うために残すが、表示は completedTasks 全体を使う
       lastCompletedTask: isCompleting ? task : (status?.lastCompletedTask || ""),
       thanksMessage: isCompleting ? "" : (status?.thanksMessage || "")
+    }, { merge: true });
+  };
+
+  const resetTasks = async () => {
+    if (!pairCode) return;
+    await setDoc(doc(db, "pairs", pairCode), {
+      completedTasks: [],
+      lastCompletedTask: "",
+      thanksMessage: ""
     }, { merge: true });
   };
 
@@ -240,16 +235,13 @@ export default function YorisoiApp() {
       <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh' }}>
         <Heart size={64} color="#9ebbd7" style={{ marginTop: '60px' }} />
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', margin: '20px 0 40px' }}>YORISOI</h1>
-        
         <div style={{ marginBottom: '40px' }}>
             <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>新しくはじめる</p>
             <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>おつたえ側ではじめる 🕊️</button>
         </div>
-
         <div style={{ padding: '25px', background: '#fff', borderRadius: '30px', boxShadow: '0 10px 25px rgba(158,187,215,0.1)' }}>
           <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>招待コードでログイン</p>
           <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: '1px solid #f0f7ff', borderRadius: '15px', fontSize: '20px', marginBottom: '15px', color: '#5a7d9a' }} />
-          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#f0f7ff', color: '#9ebbd7', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>みまもり側として参加 🤝</button>
             <button onClick={loginAsReporterWithCode} style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>おつたえ側として再ログイン</button>
@@ -272,21 +264,22 @@ export default function YorisoiApp() {
               <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
-          {['doing', 'requests', 'notToDo'].map(type => (
-            <div key={type} style={{ marginBottom: '20px' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
-                {type === 'doing' ? 'やっていること💪' : type === 'requests' ? 'やってくれたら嬉しい☺️' : '遠慮してほしいな🥺'}
-              </p>
+          {[{type:'activeDoing', label:'💪 今の状態', icon:'👟'}, {type:'activeRequests', label:'☺️ お願い', icon:'📋'}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', icon:'⚠️'}].map(field => (
+            <div key={field.type} style={{ marginBottom: '20px' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{field.label}</p>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                <input value={customInput[type]} onChange={(e) => setCustomInput({...customInput, [type]: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
-                <button onClick={() => saveCustomText(type)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
+                <input value={customInput[field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']} onChange={(e) => setCustomInput({...customInput, [field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
+                <button onClick={() => saveCustomText(field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo')} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {data[activeSettingSymptom]?.[settingLevel]?.[type]?.map(item => (
-                  <span key={item} onClick={() => toggleConfigItem(activeSettingSymptom, settingLevel, type, item)} style={{ padding: '5px 10px', background: '#f9f9f9', borderRadius: '10px', fontSize: '11px', cursor: 'pointer', border: '1px solid #eee' }}>
-                    {item} <span style={{color: '#ccc', marginLeft: '4px'}}>✕</span>
-                  </span>
-                ))}
+                {data[activeSettingSymptom]?.[settingLevel]?.[field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']?.map(item => {
+                  const isSelected = status?.[field.type]?.includes(item);
+                  return (
+                    <span key={item} onClick={() => toggleConfigItemSelection(field.type, item)} style={{ padding: '8px 12px', background: isSelected ? '#9ebbd7' : '#f9f9f9', color: isSelected ? '#fff' : '#555', borderRadius: '15px', fontSize: '12px', cursor: 'pointer', border: '1px solid #eee', transition: '0.2s' }}>
+                      {item}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -303,87 +296,82 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {/* 改修ポイント：完了したタスクをすべて表示 */}
               {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ marginBottom: '25px' }}>
                   <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
                     <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                       {status.completedTasks.map((task, idx) => (
                         <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
                       ))}
                     </div>
+                    <button onClick={resetTasks} style={{ width: '100%', padding: '8px', borderRadius: '12px', background: '#fff5ad', color: '#8a6d3b', border: '1px solid #e6db95', fontSize: '12px', fontWeight: 'bold' }}><CheckCircle2 size={14} /> 確認したよ（リストを消す）</button>
                   </div>
                   <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                     <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                      {[
-                        { text: "ありがとう", emoji: "😭" },
-                        { text: "だいすき♡", emoji: "🥰" },
-                        { text: "助かった", emoji: "😇" }
-                      ].map(item => (
-                        <button
-                          key={item.text}
-                          onClick={async () => {
-                            await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true });
-                            alert("気持ちを伝えました！");
-                          }}
-                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer', transition: '0.2s' }}
-                        >
-                          {item.text}
-                        </button>
+                      {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
+                        <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px' }}>{item.text}</button>
                       ))}
                     </div>
                   </div>
                 </div>
               )}
 
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>1. 症状を選ぶ</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {defaultSymptoms.map(s => (
+                    <button key={s} onClick={() => {
+                      const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
+                      setSelectedSymptoms(next); updateStatus(next, level);
+                    }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px' }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>2. しんどさは？</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                  {[0, 1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold' }}>{n}</button>
+                  ))}
+                </div>
+                <div style={{ textAlign: 'center', color: '#9ebbd7', fontWeight: 'bold' }}>{levelEmojis[level]} {levelFeelings[level]}</div>
+              </div>
+
+              <div style={{ marginBottom: '25px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>3. 内容をチェック・変更</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[{type:'activeDoing', label:'今の状態', icon:'👟', color:'#9ebbd7'}, {type:'activeRequests', label:'お願い', icon:'📋', color:'#ff9eb5'}, {type:'activeNotToDo', label:'遠慮してほしいこと', icon:'⚠️', color:'#f87171'}].map(item => (
+                    <div key={item.type} onClick={() => setIsSetting(true)} style={{ background: '#fff', padding: '15px', borderRadius: '20px', borderLeft: `5px solid ${item.color}`, cursor: 'pointer', position: 'relative' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: item.color, marginBottom: '5px' }}>{item.icon} {item.label}</p>
+                      <p style={{ fontSize: '14px', color: '#555' }}>
+                        {status?.[item.type]?.length > 0 ? status[item.type].join('、') : '未入力（タップで入力）'}
+                      </p>
+                      <span style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ccc' }}>✎</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '20px' }}>
                 {moodOptions.map(m => (
-                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px', cursor: 'pointer' }}>
+                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px' }}>
                     <div style={{ fontSize: '18px' }}>{m.emoji}</div>{m.label}
                   </button>
                 ))}
-              </div>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
-                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🐶")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🐶" ? "#fff3e0" : "#fff", fontWeight: 'bold', cursor: 'pointer' }}>🐶 そばにいて</button>
-                <button onClick={() => updateStatus(selectedSymptoms, level, null, "🌿")} style={{ flex: 1, padding: '15px', borderRadius: '20px', border: 'none', background: status?.mode === "🌿" ? "#f2f2f2" : "#fff", fontWeight: 'bold', cursor: 'pointer' }}>🌿 そっとして</button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '25px' }}>
-                {defaultSymptoms.map(s => (
-                  <button key={s} onClick={() => {
-                    const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-                    setSelectedSymptoms(next); updateStatus(next, level);
-                  }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                {[0, 1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold', cursor: 'pointer' }}>{n}</button>
-                ))}
-              </div>
-              <div style={{ background: '#fff', borderRadius: '25px', padding: '30px', textAlign: 'center', boxShadow: '0 5px 15px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '50px' }}>{levelEmojis[level]}</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{levelFeelings[level]}</div>
-              </div>
-              <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                <button onClick={() => { navigator.clipboard.writeText(pairCode); alert("コピーしました！"); }} style={{ background: 'none', border: 'none', color: '#9ebbd7', fontSize: '14px', textDecoration: 'underline', cursor: 'pointer' }}>招待コードをコピー</button>
               </div>
             </div>
           ) : (
             <div className="fade-in">
               {status?.thanksMessage && (
-                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(255,158,181,0.3)' }}>
-                  🥰 パートナーから届きました：{status.thanksMessage}
-                </div>
+                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold' }}>🥰 パートナーから届きました：{status.thanksMessage}</div>
               )}
-              
               {status ? (
                 <>
                   <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
-                    <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>
-                      {status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}
-                    </p>
+                    <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>{status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}</p>
                     <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
                     <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level)}</div>
@@ -391,19 +379,17 @@ export default function YorisoiApp() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
-                      {status.doing?.length > 0 ? status.doing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                      {status.activeDoing?.length > 0 ? status.activeDoing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
-                      {status.requests?.length > 0 ? status.requests.map(r => (
-                        <div key={r} onClick={() => toggleTask(r)} style={{ fontSize:'14px', marginBottom:'5px', cursor:'pointer', opacity: completedTasks.includes(r) ? 0.4 : 1, textDecoration: completedTasks.includes(r) ? "line-through" : "none" }}>
-                          {completedTasks.includes(r) ? "✅" : "⬜"} {r}
-                        </div>
+                      {status.activeRequests?.length > 0 ? status.activeRequests.map(r => (
+                        <div key={r} onClick={() => toggleTask(r)} style={{ fontSize:'14px', marginBottom:'5px', cursor:'pointer', opacity: completedTasks.includes(r) ? 0.4 : 1, textDecoration: completedTasks.includes(r) ? "line-through" : "none" }}>{completedTasks.includes(r) ? "✅" : "⬜"} {r}</div>
                       )) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ccc' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#999', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
-                      {status.notToDo?.length > 0 ? status.notToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                      {status.activeNotToDo?.length > 0 ? status.activeNotToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                   </div>
                 </>
