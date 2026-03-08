@@ -93,7 +93,13 @@ export default function YorisoiApp() {
 
   useEffect(() => {
     if (!pairCode) return;
-    const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => { if (s.exists()) setStatus(s.data()); });
+    const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
+  if (s.exists()) {
+    const newData = s.data();
+    setStatus(newData);
+    setCompletedTasks(newData.completedTasks || []);
+  }
+});
     const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { if (s.exists()) setData(s.data()); });
     return () => { unsubStatus(); unsubConfig(); };
   }, [pairCode]);
