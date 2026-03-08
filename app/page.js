@@ -123,11 +123,9 @@ export default function YorisoiApp() {
       }
     });
     await setDoc(doc(db, "configs", code), initData);
-    // 初期のステータスも作成
     await setDoc(doc(db, "pairs", code), { level: 0, feeling: "落ち着いたよ", emoji: "🍃" });
   };
 
-  // 招待コードで「おつたえ側」としてログインする機能
   const loginAsReporterWithCode = async () => {
     if (inputCode.length < 4) return alert("有効なコードを入力してください");
     const docSnap = await getDoc(doc(db, "configs", inputCode.toUpperCase()));
@@ -210,7 +208,7 @@ export default function YorisoiApp() {
 
     await setDoc(doc(db, "pairs", pairCode), {
       completedTasks: updated,
-      lastCompletedTask: isCompleting ? task : (status?.lastCompletedTask || ""),
+      // 感謝メッセージは新しいタスクが完了した時だけリセット
       thanksMessage: isCompleting ? "" : (status?.thanksMessage || "")
     }, { merge: true });
   };
@@ -285,13 +283,19 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {status?.lastCompletedTask && (
+              {/* 改善ポイント：完了したタスクをすべて表示する */}
+              {status?.completedTasks?.length > 0 && (
                 <div className="fade-in" style={{ marginBottom: '25px' }}>
-                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b', fontWeight: 'bold', fontSize: '15px' }}>
-                    ✨ 「{status.lastCompletedTask}」を完了しました！
+                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '15px', marginBottom: '5px' }}>✨ パートナーが完了しました！</div>
+                    {status.completedTasks.map((task, idx) => (
+                      <div key={idx} style={{ fontSize: '13px', background: 'rgba(255,255,255,0.5)', display: 'inline-block', padding: '2px 10px', borderRadius: '10px', margin: '2px' }}>
+                        {task}
+                      </div>
+                    ))}
                   </div>
                   <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>✨ パートナーが動いてくれました！</p>
+                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>感謝の気持ちを伝える 🥰</p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                       {[
                         { text: "ありがとう", emoji: "😭" },
@@ -304,7 +308,7 @@ export default function YorisoiApp() {
                             await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true });
                             alert("気持ちを伝えました！");
                           }}
-                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer', transition: '0.2s' }}
+                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}
                         >
                           {item.text}
                         </button>
@@ -391,9 +395,4 @@ export default function YorisoiApp() {
       <style jsx>{`
         .push-btn { transition: 0.2s; cursor: pointer; }
         .push-btn:active { transform: scale(0.95); }
-        .fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-    </div>
-  );
-}
+        .fade-in {
