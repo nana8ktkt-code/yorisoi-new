@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
+// getDoc を追加しました
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { Settings, Heart, LogOut, Save } from 'lucide-react';
 
@@ -110,7 +111,7 @@ export default function YorisoiApp() {
 
   const startAsReporter = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    saveLogin(code, 'her');
+    
     const initData = {};
     defaultSymptoms.forEach(symptom => {
       initData[symptom] = {};
@@ -122,28 +123,47 @@ export default function YorisoiApp() {
         };
       }
     });
-    await setDoc(doc(db, "configs", code), initData);
-    await setDoc(doc(db, "pairs", code), { level: 0, feeling: "落ち着いたよ", emoji: "🍃" });
+
+    try {
+      await setDoc(doc(db, "configs", code), initData);
+      await setDoc(doc(db, "pairs", code), { 
+        level: 0, 
+        feeling: "落ち着いたよ", 
+        emoji: "🍃",
+        completedTasks: [] 
+      });
+      saveLogin(code, 'her');
+    } catch (e) {
+      alert("エラーが発生しました。もう一度試してください。");
+    }
   };
 
   const loginAsReporterWithCode = async () => {
-    if (inputCode.length < 4) return alert("有効なコードを入力してください");
-    const docSnap = await getDoc(doc(db, "configs", inputCode.toUpperCase()));
-    if (docSnap.exists()) {
-      saveLogin(inputCode.toUpperCase(), 'her');
-    } else {
-      alert("該当するコードが見つかりませんでした");
+    if (!inputCode || inputCode.length < 4) return alert("有効なコードを入力してください");
+    try {
+      const docSnap = await getDoc(doc(db, "configs", inputCode.toUpperCase()));
+      if (docSnap.exists()) {
+        saveLogin(inputCode.toUpperCase(), 'her');
+      } else {
+        alert("該当するコードが見つかりませんでした");
+      }
+    } catch (e) {
+      alert("通信エラーが発生しました");
     }
   };
 
   const startAsSupporter = async () => {
-    if (inputCode.length < 4) return alert("コードを入力してください");
+    if (!inputCode || inputCode.length < 4) return alert("コードを入力してください");
     const code = inputCode.toUpperCase();
-    const docSnap = await getDoc(doc(db, "configs", code));
-    if (docSnap.exists()) {
-      saveLogin(code, 'him');
-    } else {
-      alert("該当するコードが見つかりませんでした");
+    try {
+      const docSnap = await getDoc(doc(db, "configs", code));
+      if (docSnap.exists()) {
+        saveLogin(code, 'him');
+      } else {
+        alert("該当するコードが見つかりませんでした");
+      }
+    } catch (e) {
+      alert("通信エラーが発生しました");
     }
   };
 
@@ -208,7 +228,7 @@ export default function YorisoiApp() {
 
     await setDoc(doc(db, "pairs", pairCode), {
       completedTasks: updated,
-      // 感謝メッセージは新しいタスクが完了した時だけリセット
+      lastCompletedTask: isCompleting ? task : (status?.lastCompletedTask || ""),
       thanksMessage: isCompleting ? "" : (status?.thanksMessage || "")
     }, { merge: true });
   };
@@ -283,19 +303,13 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {/* 改善ポイント：完了したタスクをすべて表示する */}
-              {status?.completedTasks?.length > 0 && (
+              {status?.lastCompletedTask && (
                 <div className="fade-in" style={{ marginBottom: '25px' }}>
-                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '15px', marginBottom: '5px' }}>✨ パートナーが完了しました！</div>
-                    {status.completedTasks.map((task, idx) => (
-                      <div key={idx} style={{ fontSize: '13px', background: 'rgba(255,255,255,0.5)', display: 'inline-block', padding: '2px 10px', borderRadius: '10px', margin: '2px' }}>
-                        {task}
-                      </div>
-                    ))}
+                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b', fontWeight: 'bold', fontSize: '15px' }}>
+                    ✨ 「{status.lastCompletedTask}」を完了しました！
                   </div>
                   <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>感謝の気持ちを伝える 🥰</p>
+                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>✨ パートナーが動いてくれました！</p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                       {[
                         { text: "ありがとう", emoji: "😭" },
@@ -308,7 +322,7 @@ export default function YorisoiApp() {
                             await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true });
                             alert("気持ちを伝えました！");
                           }}
-                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}
+                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer', transition: '0.2s' }}
                         >
                           {item.text}
                         </button>
@@ -395,4 +409,9 @@ export default function YorisoiApp() {
       <style jsx>{`
         .push-btn { transition: 0.2s; cursor: pointer; }
         .push-btn:active { transform: scale(0.95); }
-        .fade-in {
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+    </div>
+  );
+}
