@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { Settings, Heart, LogOut, Save } from 'lucide-react';
 
 const firebaseConfig = {
@@ -98,6 +98,7 @@ export default function YorisoiApp() {
     localStorage.setItem('yorisoi_role', r);
     setPairCode(code);
     setRole(r);
+    setShowIntro(false);
   };
 
   const logout = () => {
@@ -122,10 +123,30 @@ export default function YorisoiApp() {
       }
     });
     await setDoc(doc(db, "configs", code), initData);
+    // 初期のステータスも作成
+    await setDoc(doc(db, "pairs", code), { level: 0, feeling: "落ち着いたよ", emoji: "🍃" });
   };
 
-  const startAsSupporter = () => {
-    if (inputCode.length >= 4) saveLogin(inputCode.toUpperCase(), 'him');
+  // 招待コードで「おつたえ側」としてログインする機能
+  const loginAsReporterWithCode = async () => {
+    if (inputCode.length < 4) return alert("有効なコードを入力してください");
+    const docSnap = await getDoc(doc(db, "configs", inputCode.toUpperCase()));
+    if (docSnap.exists()) {
+      saveLogin(inputCode.toUpperCase(), 'her');
+    } else {
+      alert("該当するコードが見つかりませんでした");
+    }
+  };
+
+  const startAsSupporter = async () => {
+    if (inputCode.length < 4) return alert("コードを入力してください");
+    const code = inputCode.toUpperCase();
+    const docSnap = await getDoc(doc(db, "configs", code));
+    if (docSnap.exists()) {
+      saveLogin(code, 'him');
+    } else {
+      alert("該当するコードが見つかりませんでした");
+    }
   };
 
   const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
@@ -179,7 +200,6 @@ export default function YorisoiApp() {
     await setDoc(doc(db, "configs", pairCode), newData);
   };
 
-  // 完了通知用
   const toggleTask = async (task) => {
     const isCompleting = !completedTasks.includes(task);
     const updated = isCompleting
@@ -202,10 +222,20 @@ export default function YorisoiApp() {
       <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh' }}>
         <Heart size={64} color="#9ebbd7" style={{ marginTop: '60px' }} />
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', margin: '20px 0 40px' }}>YORISOI</h1>
-        <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', marginBottom: '40px', border: 'none', cursor: 'pointer' }}>おつたえ側 🕊️</button>
-        <div style={{ padding: '20px', background: '#fff', borderRadius: '25px' }}>
-          <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: 'none', fontSize: '20px' }} />
-          <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#eee', marginTop: '10px', border: 'none', cursor: 'pointer' }}>みまもり側として参加 🤝</button>
+        
+        <div style={{ marginBottom: '40px' }}>
+            <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>新しくはじめる</p>
+            <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>おつたえ側ではじめる 🕊️</button>
+        </div>
+
+        <div style={{ padding: '25px', background: '#fff', borderRadius: '30px', boxShadow: '0 10px 25px rgba(158,187,215,0.1)' }}>
+          <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>招待コードでログイン</p>
+          <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: '1px solid #f0f7ff', borderRadius: '15px', fontSize: '20px', marginBottom: '15px', color: '#5a7d9a' }} />
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#f0f7ff', color: '#9ebbd7', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>みまもり側として参加 🤝</button>
+            <button onClick={loginAsReporterWithCode} style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>おつたえ側として再ログイン</button>
+          </div>
         </div>
       </div>
     );
@@ -255,7 +285,6 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {/* 追加機能：完了通知と感謝ボタン */}
               {status?.lastCompletedTask && (
                 <div className="fade-in" style={{ marginBottom: '25px' }}>
                   <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b', fontWeight: 'bold', fontSize: '15px' }}>
@@ -319,7 +348,6 @@ export default function YorisoiApp() {
             </div>
           ) : (
             <div className="fade-in">
-              {/* 追加機能：感謝メッセージの表示（見守り側） */}
               {status?.thanksMessage && (
                 <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(255,158,181,0.3)' }}>
                   🥰 パートナーから届きました：{status.thanksMessage}
