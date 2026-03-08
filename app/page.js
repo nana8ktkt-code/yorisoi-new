@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-// getDoc を追加しました
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { Settings, Heart, LogOut, Save } from 'lucide-react';
 
@@ -111,7 +110,6 @@ export default function YorisoiApp() {
 
   const startAsReporter = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
     const initData = {};
     defaultSymptoms.forEach(symptom => {
       initData[symptom] = {};
@@ -130,11 +128,12 @@ export default function YorisoiApp() {
         level: 0, 
         feeling: "落ち着いたよ", 
         emoji: "🍃",
-        completedTasks: [] 
+        completedTasks: [],
+        thanksMessage: ""
       });
       saveLogin(code, 'her');
     } catch (e) {
-      alert("エラーが発生しました。もう一度試してください。");
+      alert("エラーが発生しました。");
     }
   };
 
@@ -228,6 +227,7 @@ export default function YorisoiApp() {
 
     await setDoc(doc(db, "pairs", pairCode), {
       completedTasks: updated,
+      // メッセージ送信時に使うために残すが、表示は completedTasks 全体を使う
       lastCompletedTask: isCompleting ? task : (status?.lastCompletedTask || ""),
       thanksMessage: isCompleting ? "" : (status?.thanksMessage || "")
     }, { merge: true });
@@ -303,13 +303,19 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {status?.lastCompletedTask && (
+              {/* 改修ポイント：完了したタスクをすべて表示 */}
+              {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ marginBottom: '25px' }}>
-                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b', fontWeight: 'bold', fontSize: '15px' }}>
-                    ✨ 「{status.lastCompletedTask}」を完了しました！
+                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+                    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {status.completedTasks.map((task, idx) => (
+                        <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
+                      ))}
+                    </div>
                   </div>
                   <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>✨ パートナーが動いてくれました！</p>
+                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                       {[
                         { text: "ありがとう", emoji: "😭" },
