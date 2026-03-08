@@ -52,6 +52,7 @@ export default function YorisoiApp() {
   const [data, setData] = useState({});
   const [status, setStatus] = useState(null);
   const [completedTasks, setCompletedTasks] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
