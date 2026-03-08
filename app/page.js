@@ -51,7 +51,7 @@ export default function YorisoiApp() {
   const [level, setLevel] = useState(0);
   const [data, setData] = useState({});
   const [status, setStatus] = useState(null);
-  const [completedTasks, setCompletedTasks] = useState([]); // 重複を削除
+  const [completedTasks, setCompletedTasks] = useState([]);
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
@@ -179,12 +179,20 @@ export default function YorisoiApp() {
     await setDoc(doc(db, "configs", pairCode), newData);
   };
 
+  // 完了通知用
   const toggleTask = async (task) => {
-    const updated = completedTasks.includes(task)
-      ? completedTasks.filter(t => t !== task)
-      : [...completedTasks, task];
+    const isCompleting = !completedTasks.includes(task);
+    const updated = isCompleting
+      ? [...completedTasks, task]
+      : completedTasks.filter(t => t !== task);
+
     setCompletedTasks(updated);
-    await setDoc(doc(db, "pairs", pairCode), { completedTasks: updated }, { merge: true });
+
+    await setDoc(doc(db, "pairs", pairCode), {
+      completedTasks: updated,
+      lastCompletedTask: isCompleting ? task : (status?.lastCompletedTask || ""),
+      thanksMessage: isCompleting ? "" : (status?.thanksMessage || "")
+    }, { merge: true });
   };
 
   const currentBg = getDynamicBg(status?.level || 0, status?.mode);
@@ -247,6 +255,36 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
+              {/* 追加機能：完了通知と感謝ボタン */}
+              {status?.lastCompletedTask && (
+                <div className="fade-in" style={{ marginBottom: '25px' }}>
+                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'center', color: '#8a6d3b', fontWeight: 'bold', fontSize: '15px' }}>
+                    ✨ 「{status.lastCompletedTask}」を完了しました！
+                  </div>
+                  <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>✨ パートナーが動いてくれました！</p>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                      {[
+                        { text: "ありがとう", emoji: "😭" },
+                        { text: "だいすき♡", emoji: "🥰" },
+                        { text: "助かった", emoji: "😇" }
+                      ].map(item => (
+                        <button
+                          key={item.text}
+                          onClick={async () => {
+                            await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true });
+                            alert("気持ちを伝えました！");
+                          }}
+                          style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer', transition: '0.2s' }}
+                        >
+                          {item.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '20px' }}>
                 {moodOptions.map(m => (
                   <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px', cursor: 'pointer' }}>
@@ -281,6 +319,13 @@ export default function YorisoiApp() {
             </div>
           ) : (
             <div className="fade-in">
+              {/* 追加機能：感謝メッセージの表示（見守り側） */}
+              {status?.thanksMessage && (
+                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(255,158,181,0.3)' }}>
+                  🥰 パートナーから届きました：{status.thanksMessage}
+                </div>
+              )}
+              
               {status ? (
                 <>
                   <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
