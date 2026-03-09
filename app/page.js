@@ -173,16 +173,17 @@ export default function YorisoiApp() {
 
   const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
     if (!pairCode) return;
-    await setDoc(doc(db, "pairs", pairCode), {
-      symptoms: newSyms, 
-      level: newLv, 
-      feeling: levelFeelings[newLv], 
+    const updates = {
+      level: newLv,
+      feeling: levelFeelings[newLv],
       emoji: levelEmojis[newLv],
-      mood: mood !== null ? (status?.mood === mood ? "" : mood) : (status?.mood || ""),
-      mode: mode !== null ? (status?.mode === mode ? "" : mode) : (status?.mode || ""),
-      updatedAt: new Date().getTime(), 
-      completedTasks: completedTasks
-    }, { merge: true });
+      updatedAt: new Date().getTime(),
+    };
+    if (newSyms !== null) updates.symptoms = newSyms; // 症状がある時だけ更新
+    if (mood !== null) updates.mood = status?.mood === mood ? "" : mood;
+    if (mode !== null) updates.mode = status?.mode === mode ? "" : mode;
+
+    await setDoc(doc(db, "pairs", pairCode), updates, { merge: true });
   };
 
   const saveCustomText = async (type) => {
@@ -331,13 +332,12 @@ export default function YorisoiApp() {
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>1. 症状を選ぶ</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {defaultSymptoms.map(s => (
-                    <button key={s} onClick={() => {
-                      const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-                      setSelectedSymptoms(next); updateStatus(next, level);
-                    }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
-                  ))}
-                </div>
-              </div>
+  <button key={s} onClick={async () => {
+    const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
+    setSelectedSymptoms(next); 
+    await updateStatus(next, status?.level || 0);
+  }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
+))}
 
               <div style={{ marginBottom: '25px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>2. しんどさは？</p>
