@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Heart, LogOut, Save, CheckCircle2, Bell, BellOff, Baby } from 'lucide-react';
+import { Settings, Heart, LogOut, Save, CheckCircle2, Bell, BellOff, Baby, CreditCard as Edit } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -37,18 +37,17 @@ const getHint = (lv) => {
 
 const getDynamicBg = (lv, mode, pregnancyMode) => {
   if (pregnancyMode) {
-    if (mode === "そっとして") return "#fff0f3"; 
-    if (mode === "そばにいて") return "#ffe4ec"; 
+    if (mode === "そっとして") return "#fff0f3";
+    if (mode === "そばにいて") return "#ffe4ec";
     const colors = ["#fff5f7", "#fff0f5", "#ffe8ef", "#ffdde6", "#ffd4e0", "#ffccd9"];
     return colors[lv] || "#fff5f7";
   }
-  if (mode === "そっとして") return "#f0f7f0"; 
-  if (mode === "そばにいて") return "#fff3e0"; 
+  if (mode === "そっとして") return "#f0f7f0";
+  if (mode === "そばにいて") return "#fff3e0";
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
 
-// 妊婦モード専用のお願い項目
 const pregnancyRequests = {
   partner: [
     "🍟 ポテト食べたい",
@@ -60,6 +59,50 @@ const pregnancyRequests = {
     "🚫 料理の匂いNG",
     "🪟 換気して"
   ]
+};
+
+const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
+
+const getPregnancyStage = (week) => {
+  if (week <= 5) return "妊娠初期";
+  if (week <= 11) return "つわりが出やすい時期";
+  if (week <= 15) return "つわりが落ち着く人も";
+  if (week <= 27) return "安定期";
+  if (week <= 36) return "お腹が大きくなる時期";
+  return "出産が近い時期";
+};
+
+const getMorningSicknessLevel = (week) => {
+  if (week <= 5) return "★☆☆☆☆";
+  if (week <= 7) return "★★★☆☆";
+  if (week <= 10) return "★★★★★";
+  if (week <= 12) return "★★★★☆";
+  if (week <= 15) return "★★☆☆☆";
+  return "★☆☆☆☆";
+};
+
+const calculateCurrentWeek = (startDate) => {
+  const today = new Date();
+  const diffTime = today - new Date(startDate);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const week = Math.floor(diffDays / 7);
+  return Math.min(week, 40);
+};
+
+const calculateDueDate = (startDate) => {
+  const today = new Date();
+  const currentWeek = calculateCurrentWeek(startDate);
+  const remainingDays = (40 - currentWeek) * 7;
+  const dueDate = new Date(today);
+  dueDate.setDate(today.getDate() + remainingDays);
+  return dueDate;
+};
+
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
 };
 
 export default function YorisoiApp() {
@@ -78,9 +121,10 @@ export default function YorisoiApp() {
   const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [pregnancyMode, setPregnancyMode] = useState(false);
+  const [showPregnancyModal, setShowPregnancyModal] = useState(false);
+  const [tempPregnancyWeek, setTempPregnancyWeek] = useState(8);
   const prevStatusRef = useRef(null);
 
-  const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultPlan = {
     doing: ["横になって休んでる", "薬飲んでる", "食欲がない", "少し落ち着いてきた", "声がでません", "お風呂入れない"],
     requests: [
@@ -91,10 +135,9 @@ export default function YorisoiApp() {
     notToDo: ["話しかけないで", "大きな音NG", "匂いNG", "そっとしておいて"]
   };
 
-  // 通知を送信する関数
   const sendNotification = (title, body) => {
     if (!notificationEnabled || Notification.permission !== "granted") return;
-    
+
     try {
       new Notification(title, {
         body: body,
@@ -107,7 +150,6 @@ export default function YorisoiApp() {
     }
   };
 
-  // 通知許可をリクエスト
   const requestNotificationPermission = async () => {
     if (!("Notification" in window)) {
       alert("このブラウザは通知に対応していません");
@@ -124,14 +166,12 @@ export default function YorisoiApp() {
     }
   };
 
-  // 通知をオフにする
   const disableNotification = () => {
     setNotificationEnabled(false);
     localStorage.setItem('yorisoi_notification', 'false');
     alert("通知をオフにしました");
   };
 
-  // 妊婦モード切り替え
   const togglePregnancyMode = async () => {
     const newMode = !pregnancyMode;
     setPregnancyMode(newMode);
@@ -139,6 +179,21 @@ export default function YorisoiApp() {
     if (pairCode) {
       await setDoc(doc(db, "pairs", pairCode), { pregnancyMode: newMode }, { merge: true });
     }
+  };
+
+  const savePregnancyWeek = async () => {
+    if (!pairCode) return;
+    const today = new Date();
+    const pregnancyStartDate = new Date(today);
+    pregnancyStartDate.setDate(today.getDate() - (tempPregnancyWeek * 7));
+
+    await setDoc(doc(db, "pairs", pairCode), {
+      pregnancyWeek: tempPregnancyWeek,
+      pregnancyStartDate: pregnancyStartDate.getTime()
+    }, { merge: true });
+
+    setShowPregnancyModal(false);
+    alert("妊娠週数を設定しました！");
   };
 
   useEffect(() => {
@@ -159,7 +214,6 @@ export default function YorisoiApp() {
     }
   }, []);
 
-  // 日付が変わったかチェックするヘルパー関数
   const isSameDay = (timestamp) => {
     if (!timestamp) return false;
     const updated = new Date(timestamp);
@@ -169,7 +223,6 @@ export default function YorisoiApp() {
            updated.getDate() === today.getDate();
   };
 
-  // 日付が変わったら状態をリセット
   const resetDailyStatus = async () => {
     if (!pairCode) return;
     await setDoc(doc(db, "pairs", pairCode), {
@@ -198,27 +251,24 @@ export default function YorisoiApp() {
     const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
       if (s.exists()) {
         const newData = s.data();
-        
-        // 日付が変わっていたら自動リセット
+
         if (newData.updatedAt && !isSameDay(newData.updatedAt)) {
           resetDailyStatus();
           return;
         }
 
-        // みまもり側で、状態が変わった場合に通知を送る
         if (role === 'him' && prevStatusRef.current && notificationEnabled) {
           const prev = prevStatusRef.current;
-          
-          // レベル、気分、モードのいずれかが変わった場合に通知
+
           if (prev.level !== newData.level || prev.mood !== newData.mood || prev.mode !== newData.mode) {
             let notifyBody = `${newData.emoji || ""} ${newData.feeling || ""}\nLv.${newData.level || 0}`;
             if (newData.mood) notifyBody += `\n${newData.mood}`;
             if (newData.mode) notifyBody += `\n${newData.mode === "そっとして" ? "🌿 そっとして" : "🐶 そばにいて"}`;
-            
+
             sendNotification("彼女の状態が更新されました", notifyBody);
           }
         }
-        
+
         prevStatusRef.current = newData;
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
@@ -227,8 +277,8 @@ export default function YorisoiApp() {
         if(newData.pregnancyMode !== undefined) setPregnancyMode(newData.pregnancyMode);
       }
     });
-    const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { 
-      if (s.exists()) setData(s.data()); 
+    const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => {
+      if (s.exists()) setData(s.data());
     });
     return () => { unsubStatus(); unsubConfig(); };
   }, [pairCode, role, notificationEnabled]);
@@ -264,9 +314,9 @@ export default function YorisoiApp() {
 
     try {
       await setDoc(doc(db, "configs", code), initData);
-      await setDoc(doc(db, "pairs", code), { 
-        level: 0, 
-        feeling: "落ち着いたよ", 
+      await setDoc(doc(db, "pairs", code), {
+        level: 0,
+        feeling: "落ち着いたよ",
         emoji: "🍃",
         completedTasks: [],
         thanksMessage: "",
@@ -380,6 +430,9 @@ export default function YorisoiApp() {
   const themeLightBg = pregnancyMode ? '#fff5f7' : '#f0f7ff';
   const currentBg = getDynamicBg(status?.level || 0, status?.mode, pregnancyMode);
 
+  const currentWeek = status?.pregnancyStartDate ? calculateCurrentWeek(status.pregnancyStartDate) : null;
+  const dueDate = status?.pregnancyStartDate ? calculateDueDate(status.pregnancyStartDate) : null;
+
   if (showIntro && !pairCode) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: softFontFace, background: '#f0f7ff', minHeight: '100vh' }}>
@@ -407,9 +460,80 @@ export default function YorisoiApp() {
 
   return (
     <div style={{ padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', transition: '0.5s' }}>
+      {showPregnancyModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div className="fade-in" style={{ background: '#fff', padding: '30px', borderRadius: '30px', maxWidth: '400px', width: '100%' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '20px', textAlign: 'center' }}>妊娠週数を設定</h3>
+            <div style={{ marginBottom: '25px' }}>
+              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px', textAlign: 'center' }}>現在の妊娠週数を選択してください</p>
+              <input
+                type="range"
+                min="1"
+                max="40"
+                value={tempPregnancyWeek}
+                onChange={(e) => setTempPregnancyWeek(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '10px' }}
+              />
+              <div style={{ textAlign: 'center', fontSize: '32px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>
+                {tempPregnancyWeek}週
+              </div>
+              <div style={{ textAlign: 'center', fontSize: '13px', color: '#888' }}>
+                {getPregnancyStage(tempPregnancyWeek)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setShowPregnancyModal(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '15px', border: '1px solid #ddd', background: '#fff', color: '#666', cursor: 'pointer' }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={savePregnancyWeek}
+                style={{ flex: 1, padding: '12px', borderRadius: '15px', border: 'none', background: '#ff9eb5', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isSetting ? (
         <div style={{ background: '#fff', padding: '25px', borderRadius: '30px', minHeight: '80vh' }}>
           <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: themeLightBg, borderRadius: '15px', color: themeColor, marginBottom: '20px', border: 'none' }}>◀ 戻る</button>
+
+          {pregnancyMode && (
+            <div style={{ background: '#fff5f7', padding: '20px', borderRadius: '20px', marginBottom: '25px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ff9eb5', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Baby size={18} /> 妊娠週数設定
+                </p>
+                {currentWeek && (
+                  <button
+                    onClick={() => setShowPregnancyModal(true)}
+                    style={{ padding: '6px 12px', borderRadius: '12px', border: 'none', background: '#ff9eb5', color: '#fff', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                  >
+                    <Edit size={12} /> 変更
+                  </button>
+                )}
+              </div>
+              {!currentWeek ? (
+                <button
+                  onClick={() => setShowPregnancyModal(true)}
+                  style={{ width: '100%', padding: '15px', borderRadius: '15px', border: '2px dashed #ff9eb5', background: '#fff', color: '#ff9eb5', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  + 妊娠週数を設定する
+                </button>
+              ) : (
+                <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.8' }}>
+                  <div>現在：<span style={{ fontWeight: 'bold', fontSize: '16px', color: '#ff9eb5' }}>{currentWeek}週</span></div>
+                  <div>{getPregnancyStage(currentWeek)}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
             {defaultSymptoms.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -460,36 +584,35 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {/* モード切り替え */}
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <button 
+                <button
                   onClick={togglePregnancyMode}
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px', 
-                    borderRadius: '20px', 
-                    border: 'none', 
-                    background: !pregnancyMode ? '#9ebbd7' : '#fff', 
-                    color: !pregnancyMode ? '#fff' : '#9ebbd7', 
-                    fontSize: '13px', 
-                    fontWeight: 'bold', 
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: !pregnancyMode ? '#9ebbd7' : '#fff',
+                    color: !pregnancyMode ? '#fff' : '#9ebbd7',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
                   }}
                 >
                   🌿 通常モード
                 </button>
-                <button 
+                <button
                   onClick={togglePregnancyMode}
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px', 
-                    borderRadius: '20px', 
-                    border: 'none', 
-                    background: pregnancyMode ? '#ff9eb5' : '#fff', 
-                    color: pregnancyMode ? '#fff' : '#ff9eb5', 
-                    fontSize: '13px', 
-                    fontWeight: 'bold', 
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: pregnancyMode ? '#ff9eb5' : '#fff',
+                    color: pregnancyMode ? '#fff' : '#ff9eb5',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
                   }}
@@ -498,7 +621,43 @@ export default function YorisoiApp() {
                 </button>
               </div>
 
-              {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
+              {pregnancyMode && currentWeek !== null && (
+                <div className="fade-in" style={{ background: 'linear-gradient(135deg, #ffe8f0, #ffd4e0)', padding: '25px', borderRadius: '30px', marginBottom: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ff6b9d', marginBottom: '5px' }}>
+                        妊娠 {currentWeek}週
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#c2568b', marginBottom: '15px' }}>
+                        {getPregnancyStage(currentWeek)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowPregnancyModal(true)}
+                      style={{ padding: '6px 10px', borderRadius: '12px', border: 'none', background: '#fff', color: '#ff9eb5', fontSize: '11px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      <Edit size={12} /> 編集
+                    </button>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.7)', padding: '15px', borderRadius: '20px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>つわりピーク</div>
+                    <div style={{ fontSize: '24px', color: '#ffd700', letterSpacing: '2px' }}>
+                      {getMorningSicknessLevel(currentWeek)}
+                    </div>
+                  </div>
+
+                  {dueDate && (
+                    <div style={{ background: 'rgba(255,255,255,0.7)', padding: '15px', borderRadius: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>出産予定日</div>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ff6b9d' }}>
+                        {formatDate(dueDate)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
                   <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>パートナーが完了してくれました！</p>
@@ -511,7 +670,6 @@ export default function YorisoiApp() {
                 </div>
               )}
 
-              {/* 2. 気持ちを伝えるボタン（タスクの有無に関わらず、常に白い枠で表示） */}
               <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', marginBottom: '25px' }}>
                 <p style={{ fontSize: '13px', color: themeColor, marginBottom: '15px' }}>気持ちを伝えよう</p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -521,36 +679,35 @@ export default function YorisoiApp() {
                 </div>
               </div>
 
-              {/* 3. そっとして / そばにいて ボタン */}
               <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
-                <button 
-                  onClick={() => updateStatus(null, status?.level || 0, null, "そっとして")} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '15px', 
-                    borderRadius: '20px', 
-                    border: 'none', 
-                    background: status?.mode === "そっとして" ? '#a8d5a2' : '#fff', 
-                    color: status?.mode === "そっとして" ? '#fff' : '#7cb377', 
-                    fontSize: '14px', 
-                    fontWeight: 'bold', 
+                <button
+                  onClick={() => updateStatus(null, status?.level || 0, null, "そっとして")}
+                  style={{
+                    flex: 1,
+                    padding: '15px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: status?.mode === "そっとして" ? '#a8d5a2' : '#fff',
+                    color: status?.mode === "そっとして" ? '#fff' : '#7cb377',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
                   }}
                 >
                   🌿 そっとして
                 </button>
-                <button 
-                  onClick={() => updateStatus(null, status?.level || 0, null, "そばにいて")} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '15px', 
-                    borderRadius: '20px', 
-                    border: 'none', 
-                    background: status?.mode === "そばにいて" ? '#ffb5a7' : '#fff', 
-                    color: status?.mode === "そばにいて" ? '#fff' : '#e07b6a', 
-                    fontSize: '14px', 
-                    fontWeight: 'bold', 
+                <button
+                  onClick={() => updateStatus(null, status?.level || 0, null, "そばにいて")}
+                  style={{
+                    flex: 1,
+                    padding: '15px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: status?.mode === "そばにいて" ? '#ffb5a7' : '#fff',
+                    color: status?.mode === "そばにいて" ? '#fff' : '#e07b6a',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
                   }}
@@ -559,28 +716,27 @@ export default function YorisoiApp() {
                 </button>
               </div>
 
-              {/* 妊婦モード専用のお願い */}
               {pregnancyMode && (
                 <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', marginBottom: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                   <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Baby size={18} /> 妊婦モードのお願い
                   </p>
-                  
+
                   <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>パートナーへのお願い</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
                     {pregnancyRequests.partner.map(item => {
                       const isSelected = status?.pregnancyRequests?.includes(item);
                       return (
-                        <button 
-                          key={item} 
+                        <button
+                          key={item}
                           onClick={() => togglePregnancyRequest(item)}
-                          style={{ 
-                            padding: '10px 14px', 
-                            borderRadius: '15px', 
-                            border: 'none', 
-                            background: isSelected ? '#ff9eb5' : '#fff5f7', 
-                            color: isSelected ? '#fff' : '#ff9eb5', 
-                            fontSize: '13px', 
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '15px',
+                            border: 'none',
+                            background: isSelected ? '#ff9eb5' : '#fff5f7',
+                            color: isSelected ? '#fff' : '#ff9eb5',
+                            fontSize: '13px',
                             cursor: 'pointer',
                             transition: '0.2s'
                           }}
@@ -596,16 +752,16 @@ export default function YorisoiApp() {
                     {pregnancyRequests.environment.map(item => {
                       const isSelected = status?.pregnancyRequests?.includes(item);
                       return (
-                        <button 
-                          key={item} 
+                        <button
+                          key={item}
                           onClick={() => togglePregnancyRequest(item)}
-                          style={{ 
-                            padding: '10px 14px', 
-                            borderRadius: '15px', 
-                            border: 'none', 
-                            background: isSelected ? '#ff9eb5' : '#fff5f7', 
-                            color: isSelected ? '#fff' : '#ff9eb5', 
-                            fontSize: '13px', 
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '15px',
+                            border: 'none',
+                            background: isSelected ? '#ff9eb5' : '#fff5f7',
+                            color: isSelected ? '#fff' : '#ff9eb5',
+                            fontSize: '13px',
                             cursor: 'pointer',
                             transition: '0.2s'
                           }}
@@ -632,7 +788,7 @@ export default function YorisoiApp() {
                   {defaultSymptoms.map(s => (
                     <button key={s} onClick={async () => {
                       const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-                      setSelectedSymptoms(next); 
+                      setSelectedSymptoms(next);
                       await updateStatus(next, status?.level || 0);
                     }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? themeColor : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : themeColor, fontSize: '13px', cursor: 'pointer' }}>{s}</button>
                   ))}
@@ -681,23 +837,48 @@ export default function YorisoiApp() {
               )}
               {status ? (
                 <>
-                  {/* 妊婦モード表示 */}
                   {status.pregnancyMode && (
                     <div style={{ background: 'linear-gradient(135deg, #ffb6c1, #ff9eb5)', color: '#fff', padding: '12px', borderRadius: '20px', marginBottom: '15px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>
                       👶 妊婦モード中
                     </div>
                   )}
-                  
-                  {/* そっとして / そばにいて のモード表示 */}
+
+                  {status.pregnancyMode && currentWeek !== null && (
+                    <div className="fade-in" style={{ background: 'linear-gradient(135deg, #ffe8f0, #ffd4e0)', padding: '25px', borderRadius: '30px', marginBottom: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                      <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ff6b9d', marginBottom: '5px' }}>
+                        妊娠 {currentWeek}週
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#c2568b', marginBottom: '15px' }}>
+                        {getPregnancyStage(currentWeek)}
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.7)', padding: '15px', borderRadius: '20px', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>つわりピーク</div>
+                        <div style={{ fontSize: '24px', color: '#ffd700', letterSpacing: '2px' }}>
+                          {getMorningSicknessLevel(currentWeek)}
+                        </div>
+                      </div>
+
+                      {dueDate && (
+                        <div style={{ background: 'rgba(255,255,255,0.7)', padding: '15px', borderRadius: '20px' }}>
+                          <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>出産予定日</div>
+                          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ff6b9d' }}>
+                            {formatDate(dueDate)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {status.mode && (
-                    <div 
+                    <div
                       className="fade-in"
-                      style={{ 
-                        background: status.mode === "そっとして" ? 'linear-gradient(135deg, #a8d5a2, #7cb377)' : 'linear-gradient(135deg, #ffb5a7, #e07b6a)', 
-                        color: '#fff', 
-                        padding: '20px', 
-                        borderRadius: '25px', 
-                        marginBottom: '20px', 
+                      style={{
+                        background: status.mode === "そっとして" ? 'linear-gradient(135deg, #a8d5a2, #7cb377)' : 'linear-gradient(135deg, #ffb5a7, #e07b6a)',
+                        color: '#fff',
+                        padding: '20px',
+                        borderRadius: '25px',
+                        marginBottom: '20px',
                         textAlign: 'center',
                         boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                       }}
@@ -709,8 +890,8 @@ export default function YorisoiApp() {
                         {status.mode === "そっとして" ? "そっとしてほしいみたい" : "そばにいてほしいみたい"}
                       </div>
                       <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                        {status.mode === "そっとして" 
-                          ? "今は静かに見守ってあげてね" 
+                        {status.mode === "そっとして"
+                          ? "今は静かに見守ってあげてね"
                           : "近くにいてあげると安心するかも"}
                       </div>
                     </div>
@@ -722,7 +903,6 @@ export default function YorisoiApp() {
                     <div style={{ marginTop: '15px', fontSize: '13px', background: themeLightBg, padding: '10px', borderRadius: '15px' }}>{getHint(status.level || 0)}</div>
                   </div>
 
-                  {/* 妊婦モードのお願い表示 */}
                   {status.pregnancyMode && status.pregnancyRequests?.length > 0 && (
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5', marginBottom: '15px' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
