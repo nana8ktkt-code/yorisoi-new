@@ -28,56 +28,32 @@ const moodOptions = [
 
 const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
 
-const getHint = (lv: number) => {
+const getHint = (lv) => {
   if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
   if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
   if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
   return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
 };
 
-const getDynamicBg = (lv: number, mode: string | undefined) => {
+const getDynamicBg = (lv, mode) => {
   if (mode === "🌿") return "#f2f2f2"; 
   if (mode === "🐶") return "#fff3e0"; 
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
 
-interface StatusData {
-  level?: number;
-  feeling?: string;
-  emoji?: string;
-  mood?: string;
-  mode?: string;
-  completedTasks?: string[];
-  thanksMessage?: string;
-  symptoms?: string[];
-  activeDoing?: string[];
-  activeRequests?: string[];
-  activeNotToDo?: string[];
-  lastCompletedTask?: string;
-  updatedAt?: number;
-}
 
-interface ConfigData {
-  [symptom: string]: {
-    [level: number]: {
-      doing: string[];
-      requests: string[];
-      notToDo: string[];
-    };
-  };
-}
 
 export default function YorisoiApp() {
   const [showIntro, setShowIntro] = useState(true);
   const [pairCode, setPairCode] = useState("");
   const [inputCode, setInputCode] = useState("");
-  const [role, setRole] = useState<string | null>(null);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [role, setRole] = useState(null);
+  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [level, setLevel] = useState(0);
-  const [data, setData] = useState<ConfigData>({});
-  const [status, setStatus] = useState<StatusData | null>(null);
-  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
+  const [data, setData] = useState({});
+  const [status, setStatus] = useState(null);
+  const [completedTasks, setCompletedTasks] = useState([]);
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
@@ -108,7 +84,7 @@ export default function YorisoiApp() {
     if (!pairCode) return;
     const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
       if (s.exists()) {
-        const newData = s.data() as StatusData;
+        const newData = s.data();
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
         if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
@@ -116,12 +92,12 @@ export default function YorisoiApp() {
       }
     });
     const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { 
-      if (s.exists()) setData(s.data() as ConfigData); 
+      if (s.exists()) setData(s.data()); 
     });
     return () => { unsubStatus(); unsubConfig(); };
   }, [pairCode]);
 
-  const saveLogin = (code: string, r: string) => {
+  const saveLogin = (code, r) => {
     localStorage.setItem('yorisoi_pairCode', code);
     localStorage.setItem('yorisoi_role', r);
     setPairCode(code);
@@ -138,7 +114,7 @@ export default function YorisoiApp() {
 
   const startAsReporter = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const initData: ConfigData = {};
+    const initData = {};
     defaultSymptoms.forEach(symptom => {
       initData[symptom] = {};
       for (let lv = 0; lv <= 5; lv++) {
@@ -197,9 +173,9 @@ export default function YorisoiApp() {
     }
   };
 
-  const updateStatus = async (newSyms: string[] | null, newLv: number, mood: string | null = null, mode: string | null = null) => {
+  const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
     if (!pairCode) return;
-    const updates: Partial<StatusData> = {
+    const updates = {
       level: newLv,
       feeling: levelFeelings[newLv],
       emoji: levelEmojis[newLv],
@@ -212,7 +188,7 @@ export default function YorisoiApp() {
     await setDoc(doc(db, "pairs", pairCode), updates, { merge: true });
   };
 
-  const saveCustomText = async (type: 'doing' | 'requests' | 'notToDo') => {
+  const saveCustomText = async (type) => {
     const text = customInput[type];
     if (!text.trim() || !pairCode) return;
     const newData = { ...data };
@@ -226,14 +202,14 @@ export default function YorisoiApp() {
     }
   };
 
-  const toggleConfigItemSelection = async (type: string, item: string) => {
+  const toggleConfigItemSelection = async (type, item) => {
     if (!pairCode) return;
-    const current = (status as Record<string, string[]>)?.[type] || [];
-    const next = current.includes(item) ? current.filter((i: string) => i !== item) : [...current, item];
+    const current = status?.[type] || [];
+    const next = current.includes(item) ? current.filter((i) => i !== item) : [...current, item];
     await setDoc(doc(db, "pairs", pairCode), { [type]: next }, { merge: true });
   };
 
-  const toggleTask = async (task: string) => {
+  const toggleTask = async (task) => {
     const isCompleting = !completedTasks.includes(task);
     const updated = isCompleting
       ? [...completedTasks, task]
@@ -295,7 +271,7 @@ export default function YorisoiApp() {
               <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
-          {[{type:'activeDoing', label:'💪 今の状態', dataKey: 'doing' as const}, {type:'activeRequests', label:'☺️ お願い', dataKey: 'requests' as const}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', dataKey: 'notToDo' as const}].map(field => (
+          {[{type:'activeDoing', label:'💪 今の状態', dataKey: 'doing'}, {type:'activeRequests', label:'☺️ お願い', dataKey: 'requests'}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', dataKey: 'notToDo'}].map(field => (
             <div key={field.type} style={{ marginBottom: '20px' }}>
               <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{field.label}</p>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
@@ -304,7 +280,7 @@ export default function YorisoiApp() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                 {data[activeSettingSymptom]?.[settingLevel]?.[field.dataKey]?.map(item => {
-                  const isSelected = (status as Record<string, string[]>)?.[field.type]?.includes(item);
+                  const isSelected = status?.[field.type]?.includes(item);
                   return (
                     <span key={item} onClick={() => toggleConfigItemSelection(field.type, item)} style={{ padding: '8px 12px', background: isSelected ? '#9ebbd7' : '#f9f9f9', color: isSelected ? '#fff' : '#555', borderRadius: '15px', fontSize: '12px', cursor: 'pointer', border: '1px solid #eee', transition: '0.2s' }}>
                       {item}
