@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Heart, LogOut, Save, CheckCircle2 } from 'lucide-react';
+import { Settings, Heart, LogOut, Save, CheckCircle2, Bell, BellOff } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -58,6 +58,8 @@ export default function YorisoiApp() {
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
   const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const prevStatusRef = useRef(null);
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
   const defaultPlan = {
@@ -70,13 +72,57 @@ export default function YorisoiApp() {
     notToDo: ["話しかけないで", "大きな音NG", "匂いNG", "そっとしておいて"]
   };
 
+  // 通知を送信する関数
+  const sendNotification = (title, body) => {
+    if (!notificationEnabled || Notification.permission !== "granted") return;
+    
+    try {
+      new Notification(title, {
+        body: body,
+        icon: "/favicon.ico",
+        tag: "yorisoi-update",
+        renotify: true
+      });
+    } catch (e) {
+      // モバイルなどでNotificationが使えない場合は無視
+    }
+  };
+
+  // 通知許可をリクエスト
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+      alert("このブラウザは通知に対応していません");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      setNotificationEnabled(true);
+      localStorage.setItem('yorisoi_notification', 'true');
+      alert("通知をオンにしました！パートナーの状態が変わると通知でお知らせします。");
+    } else {
+      alert("通知が許可されませんでした");
+    }
+  };
+
+  // 通知をオフにする
+  const disableNotification = () => {
+    setNotificationEnabled(false);
+    localStorage.setItem('yorisoi_notification', 'false');
+    alert("通知をオフにしました");
+  };
+
   useEffect(() => {
     const savedCode = localStorage.getItem('yorisoi_pairCode');
     const savedRole = localStorage.getItem('yorisoi_role');
+    const savedNotification = localStorage.getItem('yorisoi_notification');
     if (savedCode && savedRole) {
       setPairCode(savedCode);
       setRole(savedRole);
       setShowIntro(false);
+    }
+    if (savedNotification === 'true' && typeof Notification !== 'undefined' && Notification.permission === "granted") {
+      setNotificationEnabled(true);
     }
   }, []);
 
@@ -124,7 +170,22 @@ export default function YorisoiApp() {
           resetDailyStatus();
           return;
         }
+
+        // みまもり側で、状態が変わった場合に通知を送る
+        if (role === 'him' && prevStatusRef.current && notificationEnabled) {
+          const prev = prevStatusRef.current;
+          
+          // レベル、気分、モードのいずれかが変わった場合に通知
+          if (prev.level !== newData.level || prev.mood !== newData.mood || prev.mode !== newData.mode) {
+            let notifyBody = `${newData.emoji || ""} ${newData.feeling || ""}\nLv.${newData.level || 0}`;
+            if (newData.mood) notifyBody += `\n${newData.mood}`;
+            if (newData.mode) notifyBody += `\n${newData.mode === "そっとして" ? "🌿 そっとして" : "🐶 そばにいて"}`;
+            
+            sendNotification("彼女の状態が更新されました", notifyBody);
+          }
+        }
         
+        prevStatusRef.current = newData;
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
         if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
@@ -135,7 +196,7 @@ export default function YorisoiApp() {
       if (s.exists()) setData(s.data()); 
     });
     return () => { unsubStatus(); unsubConfig(); };
-  }, [pairCode]);
+  }, [pairCode, role, notificationEnabled]);
 
   const saveLogin = (code, r) => {
     localStorage.setItem('yorisoi_pairCode', code);
@@ -335,7 +396,14 @@ export default function YorisoiApp() {
         <>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <span style={{ fontWeight: 'bold', color: '#9ebbd7' }}>ID: {pairCode}</span>
-            <div style={{ display: 'flex', gap: '15px' }}>
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              {role === 'him' && (
+                notificationEnabled ? (
+                  <Bell onClick={disableNotification} color="#9ebbd7" size={20} style={{cursor: 'pointer'}} />
+                ) : (
+                  <BellOff onClick={requestNotificationPermission} color="#ccc" size={20} style={{cursor: 'pointer'}} />
+                )
+              )}
               <Settings onClick={() => setIsSetting(true)} color="#9ebbd7" style={{cursor: 'pointer'}} />
               <LogOut onClick={logout} color="#f87171" size={20} style={{cursor: 'pointer'}} />
             </div>
