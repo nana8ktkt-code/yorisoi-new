@@ -404,11 +404,16 @@ export default function YorisoiApp() {
                     </div>
                   </div>
                 </>
-              ) : <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>}
-            </div>
-          )}
-        </>
-      )}
+              ) : (
+                  <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      )} 
+      {/* ↑ ここまでが主要なロジックの閉じカッコです */}
+
       <style jsx>{`
         .push-btn { transition: 0.2s; cursor: pointer; }
         .push-btn:active { transform: scale(0.95); }
