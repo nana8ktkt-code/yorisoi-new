@@ -28,30 +28,56 @@ const moodOptions = [
 
 const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
 
-const getHint = (lv) => {
+const getHint = (lv: number) => {
   if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
   if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
   if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
   return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
 };
 
-const getDynamicBg = (lv, mode) => {
+const getDynamicBg = (lv: number, mode: string | undefined) => {
   if (mode === "🌿") return "#f2f2f2"; 
   if (mode === "🐶") return "#fff3e0"; 
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
 
+interface StatusData {
+  level?: number;
+  feeling?: string;
+  emoji?: string;
+  mood?: string;
+  mode?: string;
+  completedTasks?: string[];
+  thanksMessage?: string;
+  symptoms?: string[];
+  activeDoing?: string[];
+  activeRequests?: string[];
+  activeNotToDo?: string[];
+  lastCompletedTask?: string;
+  updatedAt?: number;
+}
+
+interface ConfigData {
+  [symptom: string]: {
+    [level: number]: {
+      doing: string[];
+      requests: string[];
+      notToDo: string[];
+    };
+  };
+}
+
 export default function YorisoiApp() {
   const [showIntro, setShowIntro] = useState(true);
   const [pairCode, setPairCode] = useState("");
   const [inputCode, setInputCode] = useState("");
-  const [role, setRole] = useState(null);
-  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [role, setRole] = useState<string | null>(null);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [level, setLevel] = useState(0);
-  const [data, setData] = useState({});
-  const [status, setStatus] = useState(null);
-  const [completedTasks, setCompletedTasks] = useState([]);
+  const [data, setData] = useState<ConfigData>({});
+  const [status, setStatus] = useState<StatusData | null>(null);
+  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [isSetting, setIsSetting] = useState(false);
   const [activeSettingSymptom, setActiveSettingSymptom] = useState("生理痛");
   const [settingLevel, setSettingLevel] = useState(0);
@@ -82,7 +108,7 @@ export default function YorisoiApp() {
     if (!pairCode) return;
     const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
       if (s.exists()) {
-        const newData = s.data();
+        const newData = s.data() as StatusData;
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
         if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
@@ -90,12 +116,12 @@ export default function YorisoiApp() {
       }
     });
     const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { 
-      if (s.exists()) setData(s.data()); 
+      if (s.exists()) setData(s.data() as ConfigData); 
     });
     return () => { unsubStatus(); unsubConfig(); };
   }, [pairCode]);
 
-  const saveLogin = (code, r) => {
+  const saveLogin = (code: string, r: string) => {
     localStorage.setItem('yorisoi_pairCode', code);
     localStorage.setItem('yorisoi_role', r);
     setPairCode(code);
@@ -112,7 +138,7 @@ export default function YorisoiApp() {
 
   const startAsReporter = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const initData = {};
+    const initData: ConfigData = {};
     defaultSymptoms.forEach(symptom => {
       initData[symptom] = {};
       for (let lv = 0; lv <= 5; lv++) {
@@ -171,22 +197,22 @@ export default function YorisoiApp() {
     }
   };
 
-  const updateStatus = async (newSyms, newLv, mood = null, mode = null) => {
+  const updateStatus = async (newSyms: string[] | null, newLv: number, mood: string | null = null, mode: string | null = null) => {
     if (!pairCode) return;
-    const updates = {
+    const updates: Partial<StatusData> = {
       level: newLv,
       feeling: levelFeelings[newLv],
       emoji: levelEmojis[newLv],
       updatedAt: new Date().getTime(),
     };
-    if (newSyms !== null) updates.symptoms = newSyms; // 症状がある時だけ更新
+    if (newSyms !== null) updates.symptoms = newSyms;
     if (mood !== null) updates.mood = status?.mood === mood ? "" : mood;
     if (mode !== null) updates.mode = status?.mode === mode ? "" : mode;
 
     await setDoc(doc(db, "pairs", pairCode), updates, { merge: true });
   };
 
-  const saveCustomText = async (type) => {
+  const saveCustomText = async (type: 'doing' | 'requests' | 'notToDo') => {
     const text = customInput[type];
     if (!text.trim() || !pairCode) return;
     const newData = { ...data };
@@ -200,14 +226,14 @@ export default function YorisoiApp() {
     }
   };
 
-  const toggleConfigItemSelection = async (type, item) => {
+  const toggleConfigItemSelection = async (type: string, item: string) => {
     if (!pairCode) return;
-    const current = status?.[type] || [];
-    const next = current.includes(item) ? current.filter(i => i !== item) : [...current, item];
+    const current = (status as Record<string, string[]>)?.[type] || [];
+    const next = current.includes(item) ? current.filter((i: string) => i !== item) : [...current, item];
     await setDoc(doc(db, "pairs", pairCode), { [type]: next }, { merge: true });
   };
 
-  const toggleTask = async (task) => {
+  const toggleTask = async (task: string) => {
     const isCompleting = !completedTasks.includes(task);
     const updated = isCompleting
       ? [...completedTasks, task]
@@ -248,6 +274,10 @@ export default function YorisoiApp() {
             <button onClick={loginAsReporterWithCode} style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>おつたえ側として再ログイン</button>
           </div>
         </div>
+        <style jsx>{`
+          .push-btn { transition: 0.2s; cursor: pointer; }
+          .push-btn:active { transform: scale(0.95); }
+        `}</style>
       </div>
     );
   }
@@ -265,16 +295,16 @@ export default function YorisoiApp() {
               <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
-          {[{type:'activeDoing', label:'💪 今の状態', icon:'👟'}, {type:'activeRequests', label:'☺️ お願い', icon:'📋'}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', icon:'⚠️'}].map(field => (
+          {[{type:'activeDoing', label:'💪 今の状態', dataKey: 'doing' as const}, {type:'activeRequests', label:'☺️ お願い', dataKey: 'requests' as const}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', dataKey: 'notToDo' as const}].map(field => (
             <div key={field.type} style={{ marginBottom: '20px' }}>
               <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{field.label}</p>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                <input value={customInput[field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']} onChange={(e) => setCustomInput({...customInput, [field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
-                <button onClick={() => saveCustomText(field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo')} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
+                <input value={customInput[field.dataKey]} onChange={(e) => setCustomInput({...customInput, [field.dataKey]: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
+                <button onClick={() => saveCustomText(field.dataKey)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {data[activeSettingSymptom]?.[settingLevel]?.[field.type === 'activeDoing' ? 'doing' : field.type === 'activeRequests' ? 'requests' : 'notToDo']?.map(item => {
-                  const isSelected = status?.[field.type]?.includes(item);
+                {data[activeSettingSymptom]?.[settingLevel]?.[field.dataKey]?.map(item => {
+                  const isSelected = (status as Record<string, string[]>)?.[field.type]?.includes(item);
                   return (
                     <span key={item} onClick={() => toggleConfigItemSelection(field.type, item)} style={{ padding: '8px 12px', background: isSelected ? '#9ebbd7' : '#f9f9f9', color: isSelected ? '#fff' : '#555', borderRadius: '15px', fontSize: '12px', cursor: 'pointer', border: '1px solid #eee', transition: '0.2s' }}>
                       {item}
@@ -298,27 +328,27 @@ export default function YorisoiApp() {
           {role === 'her' ? (
             <div className="fade-in">
               {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
-{status?.completedTasks && status.completedTasks.length > 0 && (
-  <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-      {status.completedTasks.map((task, idx) => (
-        <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
-      ))}
-    </div>
-    <button onClick={resetTasks} style={{ width: '100%', padding: '8px', borderRadius: '12px', background: '#fff5ad', color: '#8a6d3b', border: '1px solid #e6db95', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}><CheckCircle2 size={14} /> 確認したよ（リストを消す）</button>
-  </div>
-)}
+              {status?.completedTasks && status.completedTasks.length > 0 && (
+                <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+                    {status.completedTasks.map((task, idx) => (
+                      <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
+                    ))}
+                  </div>
+                  <button onClick={resetTasks} style={{ width: '100%', padding: '8px', borderRadius: '12px', background: '#fff5ad', color: '#8a6d3b', border: '1px solid #e6db95', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><CheckCircle2 size={14} /> 確認したよ（リストを消す）</button>
+                </div>
+              )}
 
-{/* 2. 気持ちを伝えるボタン（タスクの有無に関わらず、常に白い枠で表示） */}
-<div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', marginBottom: '25px' }}>
-  <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
-  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-    {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
-      <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
-    ))}
-  </div>
-</div>
+              {/* 2. 気持ちを伝えるボタン（タスクの有無に関わらず、常に白い枠で表示） */}
+              <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', marginBottom: '25px' }}>
+                <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
+                    <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
+                  ))}
+                </div>
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '25px' }}>
                 {moodOptions.map(m => (
@@ -332,13 +362,15 @@ export default function YorisoiApp() {
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>1. 症状を選ぶ</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {defaultSymptoms.map(s => (
-  <button key={s} onClick={async () => {
-    const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
-    setSelectedSymptoms(next); 
-    await updateStatus(next, status?.level || 0);
-  }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
-))}
-</div>
+                    <button key={s} onClick={async () => {
+                      const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
+                      setSelectedSymptoms(next); 
+                      await updateStatus(next, status?.level || 0);
+                    }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ marginBottom: '25px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>2. しんどさは？</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
@@ -356,7 +388,7 @@ export default function YorisoiApp() {
                     <div key={item.type} onClick={() => setIsSetting(true)} style={{ background: '#fff', padding: '15px', borderRadius: '20px', borderLeft: `5px solid ${item.color}`, cursor: 'pointer', position: 'relative' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: item.color, marginBottom: '5px' }}>{item.icon} {item.label}</p>
                       <p style={{ fontSize: '14px', color: '#555' }}>
-                        {status?.[item.type]?.length > 0 ? status[item.type].join('、') : '未入力（タップで設定）'}
+                        {(status as Record<string, string[]>)?.[item.type]?.length > 0 ? (status as Record<string, string[]>)[item.type].join('、') : '未入力（タップで設定）'}
                       </p>
                       <span style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ccc' }}>✎</span>
                     </div>
@@ -385,34 +417,32 @@ export default function YorisoiApp() {
                     <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>{status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}</p>
                     <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
-                    <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level)}</div>
+                    <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level || 0)}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
-                      {status.activeDoing?.length > 0 ? status.activeDoing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                      {status.activeDoing?.length ? status.activeDoing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px' }}>やってくれたら嬉しい☺️</p>
-                      {status.activeRequests?.length > 0 ? status.activeRequests.map(r => (
+                      {status.activeRequests?.length ? status.activeRequests.map(r => (
                         <div key={r} onClick={() => toggleTask(r)} style={{ fontSize:'14px', marginBottom:'5px', cursor:'pointer', opacity: completedTasks.includes(r) ? 0.4 : 1, textDecoration: completedTasks.includes(r) ? "line-through" : "none" }}>{completedTasks.includes(r) ? "✅" : "⬜"} {r}</div>
                       )) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ccc' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#999', marginBottom: '10px' }}>遠慮してほしいな🥺</p>
-                      {status.activeNotToDo?.length > 0 ? status.activeNotToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
+                      {status.activeNotToDo?.length ? status.activeNotToDo.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                   </div>
                 </>
               ) : (
-                  <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      )} 
-      {/* ↑ ここまでが主要なロジックの閉じカッコです */}
+                <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       <style jsx>{`
         .push-btn { transition: 0.2s; cursor: pointer; }
