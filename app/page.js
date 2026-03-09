@@ -36,8 +36,8 @@ const getHint = (lv) => {
 };
 
 const getDynamicBg = (lv, mode) => {
-  if (mode === "🌿") return "#f2f2f2"; 
-  if (mode === "🐶") return "#fff3e0"; 
+  if (mode === "そっとして") return "#f0f7f0"; 
+  if (mode === "そばにいて") return "#fff3e0"; 
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
@@ -306,7 +306,7 @@ export default function YorisoiApp() {
               {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
               {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれまし��！</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                     {status.completedTasks.map((task, idx) => (
                       <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
@@ -324,6 +324,44 @@ export default function YorisoiApp() {
                     <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
                   ))}
                 </div>
+              </div>
+
+              {/* 3. そっとして / そばにいて ボタン */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+                <button 
+                  onClick={() => updateStatus(null, status?.level || 0, null, "そっとして")} 
+                  style={{ 
+                    flex: 1, 
+                    padding: '15px', 
+                    borderRadius: '20px', 
+                    border: 'none', 
+                    background: status?.mode === "そっとして" ? '#a8d5a2' : '#fff', 
+                    color: status?.mode === "そっとして" ? '#fff' : '#7cb377', 
+                    fontSize: '14px', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  🌿 そっとして
+                </button>
+                <button 
+                  onClick={() => updateStatus(null, status?.level || 0, null, "そばにいて")} 
+                  style={{ 
+                    flex: 1, 
+                    padding: '15px', 
+                    borderRadius: '20px', 
+                    border: 'none', 
+                    background: status?.mode === "そばにいて" ? '#ffb5a7' : '#fff', 
+                    color: status?.mode === "そばにいて" ? '#fff' : '#e07b6a', 
+                    fontSize: '14px', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  🐶 そばにいて
+                </button>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '25px' }}>
@@ -364,7 +402,7 @@ export default function YorisoiApp() {
                     <div key={item.type} onClick={() => setIsSetting(true)} style={{ background: '#fff', padding: '15px', borderRadius: '20px', borderLeft: `5px solid ${item.color}`, cursor: 'pointer', position: 'relative' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: item.color, marginBottom: '5px' }}>{item.icon} {item.label}</p>
                       <p style={{ fontSize: '14px', color: '#555' }}>
-                        {(status as Record<string, string[]>)?.[item.type]?.length > 0 ? (status as Record<string, string[]>)[item.type].join('、') : '未入力（タップで設定）'}
+                        {status?.[item.type]?.length > 0 ? status[item.type].join('、') : '未入力（タップで設定）'}
                       </p>
                       <span style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ccc' }}>✎</span>
                     </div>
