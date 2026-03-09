@@ -376,7 +376,7 @@ export default function YorisoiApp() {
           ) : (
             <div className="fade-in">
               {status?.thanksMessage && (
-                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(255,158,181,0.4)' }}>🥰 パートナーから届きました：{status.thanksMessage}</div>
+                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold' }}>🥰 パートナーから届きました：{status.thanksMessage}</div>
               )}
               {status ? (
                 <>
