@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Heart, LogOut, Save, CheckCircle2, Bell, BellOff } from 'lucide-react';
+import { Settings, Heart, LogOut, Save, CheckCircle2, Bell, BellOff, Baby } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3S7sO5trehM1cNHOzo6cc49D8V4rXSqg",
@@ -29,20 +29,38 @@ const moodOptions = [
 const softFontFace = '"Hiragino Maru Gothic ProN", "Meiryo", sans-serif';
 
 const getHint = (lv) => {
-  if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう🕊️";
+  if (lv === 0) return "落ち着いているみたい。今のうちに家事や準備を済ませておこう";
   if (lv <= 1) return "少し違和感があるみたい。無理させないように気にかけてあげてね。";
   if (lv <= 3) return "しんどくなってきました。『何かできることある？』と聞いてみて。";
   return "かなりつらそう。今は設定の『遠慮してほしいこと』を守って、静かに見守るのが一番のケアだよ。";
 };
 
-const getDynamicBg = (lv, mode) => {
+const getDynamicBg = (lv, mode, pregnancyMode) => {
+  if (pregnancyMode) {
+    if (mode === "そっとして") return "#fff0f3"; 
+    if (mode === "そばにいて") return "#ffe4ec"; 
+    const colors = ["#fff5f7", "#fff0f5", "#ffe8ef", "#ffdde6", "#ffd4e0", "#ffccd9"];
+    return colors[lv] || "#fff5f7";
+  }
   if (mode === "そっとして") return "#f0f7f0"; 
   if (mode === "そばにいて") return "#fff3e0"; 
   const colors = ["#f0fcf4", "#f4fcf0", "#fffbe6", "#fff5f0", "#fff0f5", "#f5f0ff"];
   return colors[lv] || "#f0f7ff";
 };
 
-
+// 妊婦モード専用のお願い項目
+const pregnancyRequests = {
+  partner: [
+    "🍟 ポテト食べたい",
+    "🍓 フルーツ食べたい",
+    "🚫 ご飯いらない"
+  ],
+  environment: [
+    "🚫 柔軟剤の匂いNG",
+    "🚫 料理の匂いNG",
+    "🪟 換気して"
+  ]
+};
 
 export default function YorisoiApp() {
   const [showIntro, setShowIntro] = useState(true);
@@ -59,6 +77,7 @@ export default function YorisoiApp() {
   const [settingLevel, setSettingLevel] = useState(0);
   const [customInput, setCustomInput] = useState({ doing: "", requests: "", notToDo: "" });
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [pregnancyMode, setPregnancyMode] = useState(false);
   const prevStatusRef = useRef(null);
 
   const defaultSymptoms = ["つわり", "生理痛", "PMS", "頭痛", "腹痛", "だるい", "のどが痛い", "熱がある"];
@@ -112,10 +131,21 @@ export default function YorisoiApp() {
     alert("通知をオフにしました");
   };
 
+  // 妊婦モード切り替え
+  const togglePregnancyMode = async () => {
+    const newMode = !pregnancyMode;
+    setPregnancyMode(newMode);
+    localStorage.setItem('yorisoi_pregnancyMode', newMode ? 'true' : 'false');
+    if (pairCode) {
+      await setDoc(doc(db, "pairs", pairCode), { pregnancyMode: newMode }, { merge: true });
+    }
+  };
+
   useEffect(() => {
     const savedCode = localStorage.getItem('yorisoi_pairCode');
     const savedRole = localStorage.getItem('yorisoi_role');
     const savedNotification = localStorage.getItem('yorisoi_notification');
+    const savedPregnancyMode = localStorage.getItem('yorisoi_pregnancyMode');
     if (savedCode && savedRole) {
       setPairCode(savedCode);
       setRole(savedRole);
@@ -123,6 +153,9 @@ export default function YorisoiApp() {
     }
     if (savedNotification === 'true' && typeof Notification !== 'undefined' && Notification.permission === "granted") {
       setNotificationEnabled(true);
+    }
+    if (savedPregnancyMode === 'true') {
+      setPregnancyMode(true);
     }
   }, []);
 
@@ -149,6 +182,7 @@ export default function YorisoiApp() {
       activeDoing: [],
       activeRequests: [],
       activeNotToDo: [],
+      pregnancyRequests: [],
       completedTasks: [],
       lastCompletedTask: "",
       thanksMessage: "",
@@ -190,6 +224,7 @@ export default function YorisoiApp() {
         setCompletedTasks(newData.completedTasks || []);
         if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
         if(newData.level !== undefined) setLevel(newData.level);
+        if(newData.pregnancyMode !== undefined) setPregnancyMode(newData.pregnancyMode);
       }
     });
     const unsubConfig = onSnapshot(doc(db, "configs", pairCode), (s) => { 
@@ -237,7 +272,9 @@ export default function YorisoiApp() {
         thanksMessage: "",
         activeDoing: [],
         activeRequests: [],
-        activeNotToDo: []
+        activeNotToDo: [],
+        pregnancyMode: false,
+        pregnancyRequests: []
       });
       saveLogin(code, 'her');
     } catch (e) {
@@ -310,6 +347,13 @@ export default function YorisoiApp() {
     await setDoc(doc(db, "pairs", pairCode), { [type]: next }, { merge: true });
   };
 
+  const togglePregnancyRequest = async (item) => {
+    if (!pairCode) return;
+    const current = status?.pregnancyRequests || [];
+    const next = current.includes(item) ? current.filter((i) => i !== item) : [...current, item];
+    await setDoc(doc(db, "pairs", pairCode), { pregnancyRequests: next }, { merge: true });
+  };
+
   const toggleTask = async (task) => {
     const isCompleting = !completedTasks.includes(task);
     const updated = isCompleting
@@ -332,7 +376,9 @@ export default function YorisoiApp() {
     }, { merge: true });
   };
 
-  const currentBg = getDynamicBg(status?.level || 0, status?.mode);
+  const themeColor = pregnancyMode ? '#ff9eb5' : '#9ebbd7';
+  const themeLightBg = pregnancyMode ? '#fff5f7' : '#f0f7ff';
+  const currentBg = getDynamicBg(status?.level || 0, status?.mode, pregnancyMode);
 
   if (showIntro && !pairCode) {
     return (
@@ -341,13 +387,13 @@ export default function YorisoiApp() {
         <h1 style={{ color: '#9ebbd7', fontSize: '32px', margin: '20px 0 40px' }}>YORISOI</h1>
         <div style={{ marginBottom: '40px' }}>
             <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>新しくはじめる</p>
-            <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>おつたえ側ではじめる 🕊️</button>
+            <button onClick={startAsReporter} className="push-btn" style={{ width: '100%', padding: '22px', borderRadius: '30px', background: '#9ebbd7', color: '#fff', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>おつたえ側ではじめる</button>
         </div>
         <div style={{ padding: '25px', background: '#fff', borderRadius: '30px', boxShadow: '0 10px 25px rgba(158,187,215,0.1)' }}>
           <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>招待コードでログイン</p>
           <input type="text" placeholder="コードを入力" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} style={{ width: '100%', padding: '15px', textAlign: 'center', border: '1px solid #f0f7ff', borderRadius: '15px', fontSize: '20px', marginBottom: '15px', color: '#5a7d9a' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#f0f7ff', color: '#9ebbd7', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>みまもり側として参加 🤝</button>
+            <button onClick={startAsSupporter} className="push-btn" style={{ width: '100%', padding: '15px', borderRadius: '20px', background: '#f0f7ff', color: '#9ebbd7', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>みまもり側として参加</button>
             <button onClick={loginAsReporterWithCode} style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>おつたえ側として再ログイン</button>
           </div>
         </div>
@@ -363,13 +409,13 @@ export default function YorisoiApp() {
     <div style={{ padding: '30px 20px', maxWidth: '500px', margin: '0 auto', fontFamily: softFontFace, background: currentBg, minHeight: '100vh', transition: '0.5s' }}>
       {isSetting ? (
         <div style={{ background: '#fff', padding: '25px', borderRadius: '30px', minHeight: '80vh' }}>
-          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: '#f0f7ff', borderRadius: '15px', color: '#9ebbd7', marginBottom: '20px', border: 'none' }}>◀ 戻る</button>
+          <button onClick={() => setIsSetting(false)} className="push-btn" style={{ padding: '10px 20px', background: themeLightBg, borderRadius: '15px', color: themeColor, marginBottom: '20px', border: 'none' }}>◀ 戻る</button>
           <select value={activeSettingSymptom} onChange={(e) => setActiveSettingSymptom(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
             {defaultSymptoms.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
             {[0, 1, 2, 3, 4, 5].map(n => (
-              <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? '#9ebbd7' : '#eee', color: '#fff' }}>{n}</button>
+              <button key={n} onClick={() => setSettingLevel(n)} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: settingLevel === n ? themeColor : '#eee', color: '#fff' }}>{n}</button>
             ))}
           </div>
           {[{type:'activeDoing', label:'💪 今の状態', dataKey: 'doing'}, {type:'activeRequests', label:'☺️ お願い', dataKey: 'requests'}, {type:'activeNotToDo', label:'🥺 遠慮してほしいこと', dataKey: 'notToDo'}].map(field => (
@@ -377,13 +423,13 @@ export default function YorisoiApp() {
               <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{field.label}</p>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                 <input value={customInput[field.dataKey]} onChange={(e) => setCustomInput({...customInput, [field.dataKey]: e.target.value})} placeholder="項目を入力..." style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '13px' }} />
-                <button onClick={() => saveCustomText(field.dataKey)} style={{ padding: '10px', background: '#9ebbd7', color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
+                <button onClick={() => saveCustomText(field.dataKey)} style={{ padding: '10px', background: themeColor, color: '#fff', borderRadius: '10px', border: 'none' }}><Save size={18}/></button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                 {data[activeSettingSymptom]?.[settingLevel]?.[field.dataKey]?.map(item => {
                   const isSelected = status?.[field.type]?.includes(item);
                   return (
-                    <span key={item} onClick={() => toggleConfigItemSelection(field.type, item)} style={{ padding: '8px 12px', background: isSelected ? '#9ebbd7' : '#f9f9f9', color: isSelected ? '#fff' : '#555', borderRadius: '15px', fontSize: '12px', cursor: 'pointer', border: '1px solid #eee', transition: '0.2s' }}>
+                    <span key={item} onClick={() => toggleConfigItemSelection(field.type, item)} style={{ padding: '8px 12px', background: isSelected ? themeColor : '#f9f9f9', color: isSelected ? '#fff' : '#555', borderRadius: '15px', fontSize: '12px', cursor: 'pointer', border: '1px solid #eee', transition: '0.2s' }}>
                       {item}
                     </span>
                   );
@@ -395,26 +441,67 @@ export default function YorisoiApp() {
       ) : (
         <>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <span style={{ fontWeight: 'bold', color: '#9ebbd7' }}>ID: {pairCode}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontWeight: 'bold', color: themeColor }}>ID: {pairCode}</span>
+              {pregnancyMode && <span style={{ fontSize: '16px' }}>👶</span>}
+            </div>
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
               {role === 'him' && (
                 notificationEnabled ? (
-                  <Bell onClick={disableNotification} color="#9ebbd7" size={20} style={{cursor: 'pointer'}} />
+                  <Bell onClick={disableNotification} color={themeColor} size={20} style={{cursor: 'pointer'}} />
                 ) : (
                   <BellOff onClick={requestNotificationPermission} color="#ccc" size={20} style={{cursor: 'pointer'}} />
                 )
               )}
-              <Settings onClick={() => setIsSetting(true)} color="#9ebbd7" style={{cursor: 'pointer'}} />
+              <Settings onClick={() => setIsSetting(true)} color={themeColor} style={{cursor: 'pointer'}} />
               <LogOut onClick={logout} color="#f87171" size={20} style={{cursor: 'pointer'}} />
             </div>
           </header>
 
           {role === 'her' ? (
             <div className="fade-in">
+              {/* モード切り替え */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button 
+                  onClick={togglePregnancyMode}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px', 
+                    borderRadius: '20px', 
+                    border: 'none', 
+                    background: !pregnancyMode ? '#9ebbd7' : '#fff', 
+                    color: !pregnancyMode ? '#fff' : '#9ebbd7', 
+                    fontSize: '13px', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  🌿 通常モード
+                </button>
+                <button 
+                  onClick={togglePregnancyMode}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px', 
+                    borderRadius: '20px', 
+                    border: 'none', 
+                    background: pregnancyMode ? '#ff9eb5' : '#fff', 
+                    color: pregnancyMode ? '#fff' : '#ff9eb5', 
+                    fontSize: '13px', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  🤰 妊婦モード
+                </button>
+              </div>
+
               {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
               {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完���してくれまし��！</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>パートナーが完了してくれました！</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                     {status.completedTasks.map((task, idx) => (
                       <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
@@ -426,10 +513,10 @@ export default function YorisoiApp() {
 
               {/* 2. 気持ちを伝えるボタン（タスクの有無に関わらず、常に白い枠で表示） */}
               <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', marginBottom: '25px' }}>
-                <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
+                <p style={{ fontSize: '13px', color: themeColor, marginBottom: '15px' }}>気持ちを伝えよう</p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                   {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
-                    <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
+                    <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: `1px solid ${themeColor}`, background: status?.thanksMessage === (item.text + item.emoji) ? themeColor : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : themeColor, fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
                   ))}
                 </div>
               </div>
@@ -472,9 +559,68 @@ export default function YorisoiApp() {
                 </button>
               </div>
 
+              {/* 妊婦モード専用のお願い */}
+              {pregnancyMode && (
+                <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', marginBottom: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Baby size={18} /> 妊婦モードのお願い
+                  </p>
+                  
+                  <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>パートナーへのお願い</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
+                    {pregnancyRequests.partner.map(item => {
+                      const isSelected = status?.pregnancyRequests?.includes(item);
+                      return (
+                        <button 
+                          key={item} 
+                          onClick={() => togglePregnancyRequest(item)}
+                          style={{ 
+                            padding: '10px 14px', 
+                            borderRadius: '15px', 
+                            border: 'none', 
+                            background: isSelected ? '#ff9eb5' : '#fff5f7', 
+                            color: isSelected ? '#fff' : '#ff9eb5', 
+                            fontSize: '13px', 
+                            cursor: 'pointer',
+                            transition: '0.2s'
+                          }}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>環境お願い</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {pregnancyRequests.environment.map(item => {
+                      const isSelected = status?.pregnancyRequests?.includes(item);
+                      return (
+                        <button 
+                          key={item} 
+                          onClick={() => togglePregnancyRequest(item)}
+                          style={{ 
+                            padding: '10px 14px', 
+                            borderRadius: '15px', 
+                            border: 'none', 
+                            background: isSelected ? '#ff9eb5' : '#fff5f7', 
+                            color: isSelected ? '#fff' : '#ff9eb5', 
+                            fontSize: '13px', 
+                            cursor: 'pointer',
+                            transition: '0.2s'
+                          }}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '25px' }}>
                 {moodOptions.map(m => (
-                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? '#9ebbd7' : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px', cursor: 'pointer' }}>
+                  <button key={m.label} onClick={() => updateStatus(selectedSymptoms, level, m.emoji + " " + m.label)} style={{ flex: 1, padding: '10px 5px', borderRadius: '15px', background: status?.mood === (m.emoji + " " + m.label) ? themeColor : '#fff', color: status?.mood === (m.emoji + " " + m.label) ? '#fff' : '#5a7d9a', border: 'none', fontSize: '10px', cursor: 'pointer' }}>
                     <div style={{ fontSize: '18px' }}>{m.emoji}</div>{m.label}
                   </button>
                 ))}
@@ -488,7 +634,7 @@ export default function YorisoiApp() {
                       const next = selectedSymptoms.includes(s) ? selectedSymptoms.filter(i => i !== s) : [...selectedSymptoms, s];
                       setSelectedSymptoms(next); 
                       await updateStatus(next, status?.level || 0);
-                    }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
+                    }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? themeColor : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : themeColor, fontSize: '13px', cursor: 'pointer' }}>{s}</button>
                   ))}
                 </div>
               </div>
@@ -497,16 +643,16 @@ export default function YorisoiApp() {
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>2. しんどさは？</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                   {[0, 1, 2, 3, 4, 5].map(n => (
-                    <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? '#9ebbd7' : '#fff', color: level === n ? '#fff' : '#9ebbd7', fontWeight: 'bold', cursor: 'pointer' }}>{n}</button>
+                    <button key={n} onClick={() => { setLevel(n); updateStatus(selectedSymptoms, n); }} style={{ width: '45px', height: '45px', borderRadius: '50%', border: 'none', background: level === n ? themeColor : '#fff', color: level === n ? '#fff' : themeColor, fontWeight: 'bold', cursor: 'pointer' }}>{n}</button>
                   ))}
                 </div>
-                <div style={{ textAlign: 'center', color: '#9ebbd7', fontWeight: 'bold' }}>{levelEmojis[level]} {levelFeelings[level]}</div>
+                <div style={{ textAlign: 'center', color: themeColor, fontWeight: 'bold' }}>{levelEmojis[level]} {levelFeelings[level]}</div>
               </div>
 
               <div style={{ marginBottom: '10px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>3. 内容をチェック・変更</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {[{type:'activeDoing', label:'今の状態', icon:'👟', color:'#9ebbd7'}, {type:'activeRequests', label:'お願い', icon:'📋', color:'#ff9eb5'}, {type:'activeNotToDo', label:'遠慮してほしいこと', icon:'⚠️', color:'#f87171'}].map(item => (
+                  {[{type:'activeDoing', label:'今の状態', icon:'👟', color: themeColor}, {type:'activeRequests', label:'お願い', icon:'📋', color:'#ff9eb5'}, {type:'activeNotToDo', label:'遠慮してほしいこと', icon:'⚠️', color:'#f87171'}].map(item => (
                     <div key={item.type} onClick={() => setIsSetting(true)} style={{ background: '#fff', padding: '15px', borderRadius: '20px', borderLeft: `5px solid ${item.color}`, cursor: 'pointer', position: 'relative' }}>
                       <p style={{ fontSize: '12px', fontWeight: 'bold', color: item.color, marginBottom: '5px' }}>{item.icon} {item.label}</p>
                       <p style={{ fontSize: '14px', color: '#555' }}>
@@ -519,7 +665,7 @@ export default function YorisoiApp() {
               </div>
 
               <div style={{ marginTop: '30px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
-                <button onClick={() => { navigator.clipboard.writeText(pairCode); alert("コピーしました！"); }} style={{ background: 'none', border: 'none', color: '#9ebbd7', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>
+                <button onClick={() => { navigator.clipboard.writeText(pairCode); alert("コピーしました！"); }} style={{ background: 'none', border: 'none', color: themeColor, fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}>
                   招待コード（{pairCode}）をコピー
                 </button>
                 <div style={{ display: 'flex', gap: '15px' }}>
@@ -531,10 +677,17 @@ export default function YorisoiApp() {
           ) : (
             <div className="fade-in">
               {status?.thanksMessage && (
-                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold' }}>🥰 パートナーから届きました：{status.thanksMessage}</div>
+                <div className="fade-in" style={{ background: '#ff9eb5', color: '#fff', padding: '18px', borderRadius: '25px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold' }}>パートナーから届きました：{status.thanksMessage}</div>
               )}
               {status ? (
                 <>
+                  {/* 妊婦モード表示 */}
+                  {status.pregnancyMode && (
+                    <div style={{ background: 'linear-gradient(135deg, #ffb6c1, #ff9eb5)', color: '#fff', padding: '12px', borderRadius: '20px', marginBottom: '15px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                      👶 妊婦モード中
+                    </div>
+                  )}
+                  
                   {/* そっとして / そばにいて のモード表示 */}
                   {status.mode && (
                     <div 
@@ -563,14 +716,27 @@ export default function YorisoiApp() {
                     </div>
                   )}
                   <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
-                    {status.mood && <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px', marginBottom: '10px' }}>{status.mood}</p>}
+                    {status.mood && <p style={{ color: themeColor, fontWeight: 'bold', fontSize: '14px', marginBottom: '10px' }}>{status.mood}</p>}
                     <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
-                    <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level || 0)}</div>
+                    <div style={{ marginTop: '15px', fontSize: '13px', background: themeLightBg, padding: '10px', borderRadius: '15px' }}>{getHint(status.level || 0)}</div>
                   </div>
+
+                  {/* 妊婦モードのお願い表示 */}
+                  {status.pregnancyMode && status.pregnancyRequests?.length > 0 && (
+                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5', marginBottom: '15px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff9eb5', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Baby size={16} /> 妊婦さんからのお願い
+                      </p>
+                      {status.pregnancyRequests.map(r => (
+                        <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>
+                      ))}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #9ebbd7' }}>
-                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#9ebbd7', marginBottom: '10px' }}>やっていること💪</p>
+                    <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: `5px solid ${themeColor}` }}>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: themeColor, marginBottom: '10px' }}>やっていること💪</p>
                       {status.activeDoing?.length ? status.activeDoing.map(r => <div key={r} style={{ fontSize: '14px', marginBottom: '5px' }}>・{r}</div>) : <div style={{color:'#ccc', fontSize:'12px'}}>特になし</div>}
                     </div>
                     <div style={{ background: '#fff', padding: '20px', borderRadius: '25px', borderLeft: '5px solid #ff9eb5' }}>
@@ -586,7 +752,7 @@ export default function YorisoiApp() {
                   </div>
                 </>
               ) : (
-                <p style={{ textAlign: 'center', color: '#9ebbd7' }}>データを読み込み中...</p>
+                <p style={{ textAlign: 'center', color: themeColor }}>データを読み込み中...</p>
               )}
             </div>
           )}
