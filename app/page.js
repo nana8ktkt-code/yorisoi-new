@@ -296,27 +296,28 @@ export default function YorisoiApp() {
 
           {role === 'her' ? (
             <div className="fade-in">
-              {status?.completedTasks && status.completedTasks.length > 0 && (
-                <div className="fade-in" style={{ marginBottom: '25px' }}>
-                  <div style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-                    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                      {status.completedTasks.map((task, idx) => (
-                        <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
-                      ))}
-                    </div>
-                    <button onClick={resetTasks} style={{ width: '100%', padding: '8px', borderRadius: '12px', background: '#fff5ad', color: '#8a6d3b', border: '1px solid #e6db95', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}><CheckCircle2 size={14} /> 確認したよ（リストを消す）</button>
-                  </div>
-                  <div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                    <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                      {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
-                        <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
+{status?.completedTasks && status.completedTasks.length > 0 && (
+  <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+    <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれました！</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+      {status.completedTasks.map((task, idx) => (
+        <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
+      ))}
+    </div>
+    <button onClick={resetTasks} style={{ width: '100%', padding: '8px', borderRadius: '12px', background: '#fff5ad', color: '#8a6d3b', border: '1px solid #e6db95', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}><CheckCircle2 size={14} /> 確認したよ（リストを消す）</button>
+  </div>
+)}
+
+{/* 2. 気持ちを伝えるボタン（タスクの有無に関わらず、常に白い枠で表示） */}
+<div style={{ background: '#fff', padding: '20px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', marginBottom: '25px' }}>
+  <p style={{ fontSize: '13px', color: '#9ebbd7', marginBottom: '15px' }}>気持ちを伝えよう 🥰</p>
+  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+    {[{ text: "ありがとう", emoji: "😭" }, { text: "だいすき♡", emoji: "🥰" }, { text: "助かった", emoji: "😇" }].map(item => (
+      <button key={item.text} onClick={async () => { await setDoc(doc(db, "pairs", pairCode), { thanksMessage: item.text + item.emoji }, { merge: true }); alert("気持ちを伝えました！"); }} style={{ padding: '10px 16px', borderRadius: '15px', border: '1px solid #9ebbd7', background: status?.thanksMessage === (item.text + item.emoji) ? '#9ebbd7' : '#fff', color: status?.thanksMessage === (item.text + item.emoji) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{item.text}</button>
+    ))}
+  </div>
+</div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '5px', marginBottom: '25px' }}>
                 {moodOptions.map(m => (
