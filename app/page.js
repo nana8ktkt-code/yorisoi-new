@@ -338,7 +338,7 @@ export default function YorisoiApp() {
     await updateStatus(next, status?.level || 0);
   }} style={{ padding: '10px 15px', borderRadius: '15px', border: 'none', background: selectedSymptoms.includes(s) ? '#9ebbd7' : '#fff', color: selectedSymptoms.includes(s) ? '#fff' : '#9ebbd7', fontSize: '13px', cursor: 'pointer' }}>{s}</button>
 ))}
-
+</div>
               <div style={{ marginBottom: '25px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#5a7d9a', marginBottom: '10px' }}>2. しんどさは？</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
