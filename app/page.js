@@ -80,11 +80,51 @@ export default function YorisoiApp() {
     }
   }, []);
 
+  // 日付が変わったかチェックするヘルパー関数
+  const isSameDay = (timestamp) => {
+    if (!timestamp) return false;
+    const updated = new Date(timestamp);
+    const today = new Date();
+    return updated.getFullYear() === today.getFullYear() &&
+           updated.getMonth() === today.getMonth() &&
+           updated.getDate() === today.getDate();
+  };
+
+  // 日付が変わったら状態をリセット
+  const resetDailyStatus = async () => {
+    if (!pairCode) return;
+    await setDoc(doc(db, "pairs", pairCode), {
+      level: 0,
+      feeling: "落ち着いたよ",
+      emoji: "🍃",
+      mood: "",
+      mode: "",
+      symptoms: [],
+      activeDoing: [],
+      activeRequests: [],
+      activeNotToDo: [],
+      completedTasks: [],
+      lastCompletedTask: "",
+      thanksMessage: "",
+      updatedAt: null
+    }, { merge: true });
+    setSelectedSymptoms([]);
+    setLevel(0);
+    setCompletedTasks([]);
+  };
+
   useEffect(() => {
     if (!pairCode) return;
     const unsubStatus = onSnapshot(doc(db, "pairs", pairCode), (s) => {
       if (s.exists()) {
         const newData = s.data();
+        
+        // 日付が変わっていたら自動リセット
+        if (newData.updatedAt && !isSameDay(newData.updatedAt)) {
+          resetDailyStatus();
+          return;
+        }
+        
         setStatus(newData);
         setCompletedTasks(newData.completedTasks || []);
         if(newData.symptoms) setSelectedSymptoms(newData.symptoms);
@@ -306,7 +346,7 @@ export default function YorisoiApp() {
               {/* 1. パートナーへの完了通知（タスクがある時だけ黄色い枠で表示） */}
               {status?.completedTasks && status.completedTasks.length > 0 && (
                 <div className="fade-in" style={{ background: '#fffbe6', padding: '18px', borderRadius: '25px', border: '2px solid #fff5ad', marginBottom: '12px', textAlign: 'left', color: '#8a6d3b', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完了してくれまし��！</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px', textAlign: 'center' }}>✨ パートナーが完���してくれまし��！</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                     {status.completedTasks.map((task, idx) => (
                       <div key={idx} style={{ fontSize: '14px', paddingLeft: '10px' }}>✅ {task}</div>
