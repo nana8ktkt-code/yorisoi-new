@@ -427,8 +427,35 @@ export default function YorisoiApp() {
               )}
               {status ? (
                 <>
+                  {/* そっとして / そばにいて のモード表示 */}
+                  {status.mode && (
+                    <div 
+                      className="fade-in"
+                      style={{ 
+                        background: status.mode === "そっとして" ? 'linear-gradient(135deg, #a8d5a2, #7cb377)' : 'linear-gradient(135deg, #ffb5a7, #e07b6a)', 
+                        color: '#fff', 
+                        padding: '20px', 
+                        borderRadius: '25px', 
+                        marginBottom: '20px', 
+                        textAlign: 'center',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+                        {status.mode === "そっとして" ? "🌿" : "🐶"}
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
+                        {status.mode === "そっとして" ? "そっとしてほしいみたい" : "そばにいてほしいみたい"}
+                      </div>
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                        {status.mode === "そっとして" 
+                          ? "今は静かに見守ってあげてね" 
+                          : "近くにいてあげると安心するかも"}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ background: '#fff', padding: '30px', borderRadius: '35px', textAlign: 'center', marginBottom: '20px' }}>
-                    <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px' }}>{status.mood} {status.mode === "🐶" ? "そばにいてほしいみたい" : status.mode === "🌿" ? "そっとしてほしいみたい" : ""}</p>
+                    {status.mood && <p style={{ color: '#9ebbd7', fontWeight: 'bold', fontSize: '14px', marginBottom: '10px' }}>{status.mood}</p>}
                     <div style={{ fontSize: '60px', margin: '15px 0' }}>Lv.{status.level}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{status.emoji} {status.feeling}</div>
                     <div style={{ marginTop: '15px', fontSize: '13px', background: '#f0f7ff', padding: '10px', borderRadius: '15px' }}>{getHint(status.level || 0)}</div>
